@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bella Cozinha | Fichas Técnicas, Precificação & Custos</title>
+  <meta name="description" content="Bella Cozinha - Geleias Artesanais e Antepastos. Sistema integrado de gestão gastronômica, fichas técnicas, precificação com markup e custos de produção.">
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+
+  <!-- Estilos e Fontes -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Chart.js para Dashboards Interativos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="app-sidebar" id="appSidebar">
+      <div class="brand-wrapper">
+        <div class="brand-logo-box">
+          <img src="assets/logo.jpg" alt="Bella Cozinha" class="brand-logo-img">
+        </div>
+        <div class="brand-text">
+          <h1 id="brandBusinessName">Bella Cozinha</h1>
+          <span id="brandChefOrSubtitle">Geleias & Antepastos</span>
+        </div>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item active" data-tab="dashboard">
+          <button type="button">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="ingredients">
+          <button type="button">
+            <span class="nav-icon">🌾</span>
+            <span>Insumos & Estoque</span>
+            <span class="nav-badge" id="sidebarStockBadge" style="display: none;">0</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="categories">
+          <button type="button">
+            <span class="nav-icon">🏷️</span>
+            <span>Categorias</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="recipes">
+          <button type="button">
+            <span class="nav-icon">📜</span>
+            <span>Fichas Técnicas</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="pricing">
+          <button type="button">
+            <span class="nav-icon">🎯</span>
+            <span>Precificação & Markup</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="products">
+          <button type="button">
+            <span class="nav-icon">🧁</span>
+            <span>Catálogo de Venda</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="sales">
+          <button type="button">
+            <span class="nav-icon">💰</span>
+            <span>Vendas & Financeiro</span>
+          </button>
+        </li>
+        <li class="nav-item" data-tab="settings">
+          <button type="button">
+            <span class="nav-icon">⚙️</span>
+            <span>Configurações & Backup</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <button type="button" class="btn-quick-sale" id="btnSidebarQuickSale">
+          <span>✨</span>
+          <span>Registrar Venda</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL (SPA TABS) -->
+    <main class="app-main">
+      
+      <!-- Topbar Header -->
+      <header class="topbar">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <button type="button" class="mobile-toggle-btn" id="btnToggleMobileSidebar" title="Abrir Menu">☰</button>
+          <div class="topbar-title">
+            <h2 id="pageTitle">Dashboard de Desempenho</h2>
+            <p id="pageSubtitle">Visão geral dos lucros, custos de mercadoria e margens operacionais</p>
+          </div>
+        </div>
+        <div class="topbar-actions" id="topbarActionArea">
+          <!-- Ações dinâmicas renderizadas por cada aba -->
+        </div>
+      </header>
+
+      <!-- ==========================================
+           ABA 1: DASHBOARD
+           ========================================== -->
+      <section id="tab-dashboard" class="tab-content">
+        <!-- Grid de Métricas Principais (KPIs) -->
+        <div class="stats-grid">
+          <div class="stat-card" style="--card-accent: var(--accent-emerald);">
+            <div class="stat-header">
+              <span class="stat-title">Faturamento Total</span>
+              <div class="stat-icon" style="color: var(--accent-emerald);">💵</div>
+            </div>
+            <div class="stat-value" id="kpiTotalRevenue">R$ 0,00</div>
+            <div class="stat-subtext positive" id="kpiRevenueSub">Vendas apuradas</div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: var(--accent-gold);">
+            <div class="stat-header">
+              <span class="stat-title">Lucro Líquido Real</span>
+              <div class="stat-icon" style="color: var(--accent-gold);">📈</div>
+            </div>
+            <div class="stat-value" id="kpiNetProfit">R$ 0,00</div>
+            <div class="stat-subtext warning" id="kpiNetProfitSub">Após taxas & custos</div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: var(--accent-rose);">
+            <div class="stat-header">
+              <span class="stat-title">CMV Total (Custos)</span>
+              <div class="stat-icon" style="color: var(--accent-rose);">📉</div>
+            </div>
+            <div class="stat-value" id="kpiTotalCost">R$ 0,00</div>
+            <div class="stat-subtext danger" id="kpiCmvPercent">0% do faturamento</div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: var(--accent-indigo);">
+            <div class="stat-header">
+              <span class="stat-title">Margem Líquida Média</span>
+              <div class="stat-icon" style="color: var(--accent-indigo);">🎯</div>
+            </div>
+            <div class="stat-value" id="kpiAvgMargin">0,0%</div>
+            <div class="stat-subtext positive" id="kpiAvgMarginSub">Retorno líquido médio</div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: var(--primary);">
+            <div class="stat-header">
+              <span class="stat-title">Estoque Crítico</span>
+              <div class="stat-icon" style="color: var(--primary);">⚠️</div>
+            </div>
+            <div class="stat-value" id="kpiLowStockCount">0</div>
+            <div class="stat-subtext danger" id="kpiLowStockSub">Insumos em alerta</div>
+          </div>
+        </div>
+
+        <!-- Painel de Gráficos 1: Evolução Financeira e Composição de Custos -->
+        <div class="dashboard-grid-2">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><span>📊</span> Evolução de Faturamento, Custos e Lucro</h3>
+                <span class="panel-subtitle">Demonstrativo financeiro por data de venda</span>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chartFinancialEvolution"></canvas>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><span>🥧</span> Composição das Vendas</h3>
+                <span class="panel-subtitle">Divisão de CMV, Impostos/Taxas e Lucro Líquido</span>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chartCostBreakdown"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Painel de Gráficos 2: Top Produtos e Alertas de Insumos -->
+        <div class="dashboard-grid-equal">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><span>🏆</span> Produtos Mais Lucrativos</h3>
+                <span class="panel-subtitle">Ranking por lucratividade gerada</span>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chartTopProducts"></canvas>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><span>⚠️</span> Alertas de Insumos & Reposição</h3>
+                <span class="panel-subtitle">Ingredientes abaixo do estoque mínimo de segurança</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline" id="btnGoToIngredients">Ver Todos</button>
+            </div>
+            <div id="dashboardLowStockList" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Itens injetados via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA 2: INSUMOS & ESTOQUE
+           ========================================== -->
+      <section id="tab-ingredients" class="tab-content" style="display: none;">
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inputSearchIngredients" placeholder="Buscar insumo por nome ou fornecedor...">
+          </div>
+          <div class="filter-group">
+            <select id="selectFilterIngredientCategory" class="form-control">
+              <option value="">Todas as Categorias</option>
+            </select>
+            <select id="selectFilterIngredientStock" class="form-control">
+              <option value="all">Todos os Estoques</option>
+              <option value="low">Abaixo do Mínimo (Alerta)</option>
+              <option value="normal">Estoque Normal</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btnOpenNewIngredientModal">
+              <span>+</span> Novo Insumo
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table" id="tableIngredients">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th>Categoria</th>
+                <th>Embalagem de Compra</th>
+                <th>Preço Pago</th>
+                <th>Custo Unitário Base</th>
+                <th>Fator Corr. (FC)</th>
+                <th>Estoque Atual</th>
+                <th>Status</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyIngredients">
+              <!-- Renderizado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA: CATEGORIAS (DIVISÃO: INSUMOS & RECEITAS)
+           ========================================== -->
+      <section id="tab-categories" class="tab-content" style="display: none;">
+        <!-- Navegação / Divisão Superior de Categorias -->
+        <div class="category-subnav">
+          <button type="button" class="category-subnav-btn active" id="btnCatViewInsumos" data-cat-view="insumo">
+            <span class="subnav-icon">🌾</span>
+            <span>Categorias de Insumos</span>
+            <span class="subnav-badge" id="badgeCatInsumosCount">0</span>
+          </button>
+          <button type="button" class="category-subnav-btn" id="btnCatViewReceitas" data-cat-view="receita">
+            <span class="subnav-icon">📜</span>
+            <span>Categorias de Receitas</span>
+            <span class="subnav-badge" id="badgeCatReceitasCount">0</span>
+          </button>
+          <button type="button" class="category-subnav-btn" id="btnCatViewTodas" data-cat-view="all">
+            <span class="subnav-icon">🏷️</span>
+            <span>Todas as Categorias</span>
+            <span class="subnav-badge" id="badgeCatTodasCount">0</span>
+          </button>
+        </div>
+
+        <div class="filter-bar" style="margin-top: 14px;">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inputSearchCategories" placeholder="Buscar categoria por nome...">
+          </div>
+          <div class="filter-group">
+            <button type="button" class="btn btn-primary" id="btnOpenNewCategoryInsumoModal" title="Cadastrar nova categoria de insumo ou embalagem">
+              <span>🌾 +</span> Nova Cat. Insumo
+            </button>
+            <button type="button" class="btn btn-secondary" id="btnOpenNewCategoryReceitaModal" title="Cadastrar nova categoria de receitas gastronômicas">
+              <span>📜 +</span> Nova Cat. Receita
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table" id="tableCategories">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Ícone</th>
+                <th>Nome da Categoria</th>
+                <th>Divisão / Tipo</th>
+                <th>Insumos Vinculados</th>
+                <th>Receitas Vinculadas</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyCategories">
+              <!-- Renderizado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA 3: FICHAS TÉCNICAS (RECEITAS)
+           ========================================== -->
+      <section id="tab-recipes" class="tab-content" style="display: none;">
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inputSearchRecipes" placeholder="Buscar receita ou ingrediente...">
+          </div>
+          <div class="filter-group">
+            <select id="selectFilterRecipeCategory" class="form-control">
+              <option value="">Todas as Categorias</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btnOpenNewRecipeModal">
+              <span>+</span> Nova Ficha Técnica
+            </button>
+          </div>
+        </div>
+
+        <div id="recipesContainer">
+          <!-- Lista de Fichas Técnicas renderizada dinamicamente -->
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA 4: PRECIFICAÇÃO & MARKUP
+           ========================================== -->
+      <section id="tab-pricing" class="tab-content" style="display: none;">
+        
+        <!-- PAINEL DE FICHAS TÉCNICAS DISPONÍVEIS PARA PRECIFICAÇÃO -->
+        <div class="panel-card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h3 style="font-family: var(--font-heading); font-size: 1.1rem; color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span>📜</span> Lista de Fichas Técnicas para Precificar
+              </h3>
+              <p style="font-size: 0.78rem; color: var(--text-dim); margin: 3px 0 0;">
+                Clique em qualquer ficha técnica para carregar seus parâmetros individuais e assumir a última alteração feita.
+              </p>
+            </div>
+            <div class="search-input-wrapper" style="max-width: 280px; min-width: 200px;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="inputSearchPricingRecipes" placeholder="Filtrar ficha técnica...">
+            </div>
+          </div>
+
+          <div class="pricing-recipes-grid" id="pricingRecipesCardsList">
+            <!-- Renderizado dinamicamente via JS -->
+          </div>
+        </div>
+
+        <div class="pricing-calculator-layout">
+          <!-- Coluna 1: Parâmetros e Custos de Entrada -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <h3 class="calculator-section-title" style="margin: 0;">
+                <span>🎯</span> Parâmetros da Precificação
+              </h3>
+              <span class="badge badge-category" id="pricingActiveRecipeBadge">Ficha Selecionada</span>
+            </div>
+
+            <div class="form-group">
+              <label for="pricingSelectRecipe">Escolha a Receita / Ficha Técnica Base</label>
+              <select id="pricingSelectRecipe" class="form-control" style="font-weight: 600;">
+                <!-- Preenchido via JS -->
+              </select>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="pricingUnitCost">Custo Ficha / Unidade (CMV)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">R$</span>
+                  <input type="number" id="pricingUnitCost" class="form-control" step="0.01" readonly>
+                </div>
+                <span class="form-helper">Calculado da ficha técnica</span>
+              </div>
+
+              <div class="form-group">
+                <label for="pricingPackagingCost">Embalagem Individual / Entrega</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">R$</span>
+                  <input type="number" id="pricingPackagingCost" class="form-control" step="0.01" value="1.00">
+                </div>
+                <span class="form-helper">Custo por unidade vendida</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Método de Cálculo</label>
+              <div style="display: flex; gap: 16px; margin-top: 6px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: #fff;">
+                  <input type="radio" name="pricingMethod" value="margin" checked>
+                  <span>Margem Líquida Alvo (%)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: #fff;">
+                  <input type="radio" name="pricingMethod" value="markup">
+                  <span>Markup Multiplicador (x)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-grid-2" id="methodMarginContainer">
+              <div class="form-group">
+                <label for="pricingTargetMargin">Margem Líquida Desejada (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="pricingTargetMargin" class="form-control" step="0.5" value="40.0">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid-2" id="methodMarkupContainer" style="display: none;">
+              <div class="form-group">
+                <label for="pricingMarkupMultiplier">Fator Multiplicador (Markup)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">x</span>
+                  <input type="number" id="pricingMarkupMultiplier" class="form-control" step="0.1" value="2.8">
+                </div>
+                <span class="form-helper">Ex: 2.5x, 3.0x sobre o custo</span>
+              </div>
+            </div>
+
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label for="pricingTaxRate">Impostos (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="pricingTaxRate" class="form-control" step="0.1" value="4.5">
+                </div>
+                <span class="form-helper">Simples / MEI</span>
+              </div>
+
+              <div class="form-group">
+                <label for="pricingCardFeeRate">Taxa de Cartão (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="pricingCardFeeRate" class="form-control" step="0.1" value="3.2">
+                </div>
+                <span class="form-helper">Maquininha média</span>
+              </div>
+
+              <div class="form-group">
+                <label for="pricingChannelFeeRate">Canal / Delivery (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="pricingChannelFeeRate" class="form-control" step="0.1" value="0.0">
+                </div>
+                <span class="form-helper">iFood (12-23%)</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+              <label for="pricingCustomSalePrice">Preço de Venda Praticado (Arredondamento / Ajuste Manual)</label>
+              <div class="input-with-affix">
+                <span class="input-affix">R$</span>
+                <input type="number" id="pricingCustomSalePrice" class="form-control" step="0.50" placeholder="Deixe em branco para usar o sugerido">
+              </div>
+              <span class="form-helper">Se você deseja cobrar um preço específico (ex: R$ 18,00 em vez de R$ 17,64)</span>
+            </div>
+          </div>
+
+          <!-- Coluna 2: Card de Simulação e Lucros Reais -->
+          <div class="calculator-result-card">
+            <div class="result-hero">
+              <div class="result-hero-label">Preço de Venda Recomendado</div>
+              <div class="result-hero-value" id="resSuggestedPrice">R$ 0,00</div>
+              <div style="font-size: 0.82rem; color: var(--text-muted);">
+                Preço Efetivo Analisado: <strong id="resActivePrice" style="color: #fff;">R$ 0,00</strong>
+              </div>
+            </div>
+
+            <div class="result-list">
+              <div class="result-row">
+                <span class="result-row-label">(-) Custo Total Unitário (CMV + Embalagem):</span>
+                <span class="result-row-value cost" id="resTotalUnitCost">R$ 0,00</span>
+              </div>
+              <div class="result-row">
+                <span class="result-row-label">(-) Impostos Calculados:</span>
+                <span class="result-row-value cost" id="resTaxValue">R$ 0,00</span>
+              </div>
+              <div class="result-row">
+                <span class="result-row-label">(-) Taxa Cartão / Meio de Pagamento:</span>
+                <span class="result-row-value cost" id="resCardFeeValue">R$ 0,00</span>
+              </div>
+              <div class="result-row">
+                <span class="result-row-label">(-) Taxa Canal Delivery (iFood etc):</span>
+                <span class="result-row-value cost" id="resChannelFeeValue">R$ 0,00</span>
+              </div>
+              <div class="result-row" style="background-color: rgba(255, 255, 255, 0.03); padding: 8px 10px; border-radius: var(--radius-sm);">
+                <span class="result-row-label">(=) Lucro Bruto Unitário:</span>
+                <span class="result-row-value" id="resGrossProfit">R$ 0,00</span>
+              </div>
+              <div class="result-row" style="background: rgba(16, 185, 129, 0.1); padding: 10px 12px; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-emerald);">
+                <span class="result-row-label" style="color: #fff; font-weight: 700;">(=) LUCRO LÍQUIDO REAL NO BOLSO:</span>
+                <span class="result-row-value profit" id="resNetProfit" style="font-size: 1.15rem;">R$ 0,00</span>
+              </div>
+              <div class="result-row">
+                <span class="result-row-label">Margem Líquida Real (% da Venda):</span>
+                <span class="result-row-value profit" id="resNetMarginPercent">0,0%</span>
+              </div>
+              <div class="result-row">
+                <span class="result-row-label">Markup Multiplicador Efetivo:</span>
+                <span class="result-row-value" id="resEffectiveMarkup">0,0x</span>
+              </div>
+            </div>
+
+            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+              <button type="button" class="btn btn-gold" id="btnApplyPricingToProduct">
+                <span>💾</span> Salvar Precificação Desta Ficha
+              </button>
+              <button type="button" class="btn btn-outline" id="btnResetPricingToDefaults" style="font-size: 0.82rem;">
+                <span>🔄</span> Restaurar Taxas Padrão Globais
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA 5: CATÁLOGO DE PRODUTOS
+           ========================================== -->
+      <section id="tab-products" class="tab-content" style="display: none;">
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inputSearchProducts" placeholder="Buscar no catálogo de venda...">
+          </div>
+          <div class="filter-group">
+            <select id="selectFilterProductCategory" class="form-control">
+              <option value="">Todas as Categorias</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btnOpenNewProductModal">
+              <span>+</span> Novo Produto Comercial
+            </button>
+          </div>
+        </div>
+
+        <div class="products-grid" id="productsCatalogGrid">
+          <!-- Cards de produtos injetados via JS -->
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA 6: VENDAS & CONTROLE FINANCEIRO
+           ========================================== -->
+      <section id="tab-sales" class="tab-content" style="display: none;">
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inputSearchSales" placeholder="Buscar por cliente, pedido ou pagamento...">
+          </div>
+          <div class="filter-group">
+            <button type="button" class="btn btn-gold" id="btnOpenNewSaleModal">
+              <span>✨</span> Nova Venda (PDV)
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table" id="tableSales">
+            <thead>
+              <tr>
+                <th>Cód. / Data</th>
+                <th>Cliente</th>
+                <th>Produtos</th>
+                <th>Pagamento</th>
+                <th>Faturamento</th>
+                <th>CMV (Custos)</th>
+                <th>Taxas</th>
+                <th>Lucro Líquido</th>
+                <th>Margem Real</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodySales">
+              <!-- Renderizado via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           ABA 7: CONFIGURAÇÕES & BACKUP
+           ========================================== -->
+      <section id="tab-settings" class="tab-content" style="display: none;">
+        <div class="panel-card" style="max-width: 800px; margin-bottom: 24px;">
+          <div class="panel-header">
+            <h3 class="panel-title"><span>⚙️</span> Parâmetros Globais do Negócio</h3>
+          </div>
+          
+          <form id="formGlobalSettings">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="setBusinessName">Nome da Empresa / Confeitaria</label>
+                <input type="text" id="setBusinessName" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label for="setChefName">Nome do Responsável / Chef</label>
+                <input type="text" id="setChefName" class="form-control" required>
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="setDefaultHourlyRate">Custo Base da Hora de Trabalho (R$/hora)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">R$</span>
+                  <input type="number" id="setDefaultHourlyRate" class="form-control" step="1.00">
+                </div>
+                <span class="form-helper">Usado para rateio da mão de obra na ficha técnica</span>
+              </div>
+
+              <div class="form-group">
+                <label for="setDefaultOperationalRate">Custos Operacionais Indiretos Padrão (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="setDefaultOperationalRate" class="form-control" step="0.5">
+                </div>
+                <span class="form-helper">Gás, energia, água, produtos de limpeza</span>
+              </div>
+            </div>
+
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label for="setDefaultTaxRate">Alíquota Média de Impostos (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="setDefaultTaxRate" class="form-control" step="0.1">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="setDefaultCardFeeRate">Taxa Média de Maquininha (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="setDefaultCardFeeRate" class="form-control" step="0.1">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="setDefaultTargetMargin">Margem Líquida Padrão (%)</label>
+                <div class="input-with-affix">
+                  <span class="input-affix">%</span>
+                  <input type="number" id="setDefaultTargetMargin" class="form-control" step="0.5">
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+              <button type="submit" class="btn btn-primary">Salvar Parâmetros</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel-card" style="max-width: 800px;">
+          <div class="panel-header">
+            <h3 class="panel-title"><span>💾</span> Backup & Gestão de Dados</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 20px;">
+            Todos os seus insumos, receitas, catálogo e vendas ficam gravados no navegador. Faça download do backup para guardar ou migrar para outro dispositivo com 1 clique.
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary" id="btnExportJSON">
+              <span>📥</span> Exportar Backup Completo (JSON)
+            </button>
+
+            <label class="btn btn-outline" style="cursor: pointer; margin: 0;">
+              <span>📤</span> Restaurar Backup (JSON)
+              <input type="file" id="inputImportJSON" accept=".json" style="display: none;">
+            </label>
+
+            <button type="button" class="btn btn-danger-outline" id="btnResetDemoData">
+              <span>🔄</span> Recarregar Dados de Exemplo
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- =======================================================
+       MODAL 1: CADASTRO / EDIÇÃO DE INSUMO
+       ======================================================= -->
+  <div class="modal-overlay" id="modalIngredient">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modalIngredientTitle">Cadastrar Novo Insumo</h3>
+        <button type="button" class="modal-close-btn" data-close="modalIngredient">&times;</button>
+      </div>
+      <form id="formIngredient">
+        <input type="hidden" id="ingId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="ingName">Nome do Insumo / Matéria-Prima *</label>
+            <input type="text" id="ingName" class="form-control" required placeholder="Ex: Farinha de Trigo Especial">
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="ingCategory">Categoria *</label>
+              <input type="text" id="ingCategory" class="form-control" required placeholder="Ex: Laticínios, Farinhas, Embalagens" list="listCategories">
+              <datalist id="listCategories">
+                <option value="Farinhas & Secos">
+                <option value="Açúcares & Adoçantes">
+                <option value="Laticínios">
+                <option value="Ovos & Frescos">
+                <option value="Chocolates & Cacau">
+                <option value="Castanhas & Frutas Secas">
+                <option value="Carnes & Proteínas">
+                <option value="Embalagens">
+                <option value="Especiarias & Aromas">
+              </datalist>
+            </div>
+
+            <div class="form-group">
+              <label for="ingSupplier">Fornecedor Habitual</label>
+              <input type="text" id="ingSupplier" class="form-control" placeholder="Ex: Atacadão, Distribuidora Central">
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="ingPackageQty">Qtd. Embalagem *</label>
+              <input type="number" id="ingPackageQty" class="form-control" step="0.01" required placeholder="Ex: 1 ou 500">
+            </div>
+
+            <div class="form-group">
+              <label for="ingPackageUnit">Unidade de Compra *</label>
+              <select id="ingPackageUnit" class="form-control" required>
+                <option value="kg">Quilograma (kg)</option>
+                <option value="g">Grama (g)</option>
+                <option value="l">Litro (l)</option>
+                <option value="ml">Mililitro (ml)</option>
+                <option value="un">Unidade (un)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="ingPackagePrice">Preço Pago (R$) *</label>
+              <input type="number" id="ingPackagePrice" class="form-control" step="0.01" required placeholder="Ex: 18.50">
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="ingCorrectionFactor">Fator Correção (FC)</label>
+              <input type="number" id="ingCorrectionFactor" class="form-control" step="0.01" value="1.00">
+              <span class="form-helper">1.0 = sem perdas. Ex: 1.15 para frutas c/ casca</span>
+            </div>
+
+            <div class="form-group">
+              <label for="ingCurrentStock">Estoque Atual</label>
+              <input type="number" id="ingCurrentStock" class="form-control" step="0.01" value="0">
+              <span class="form-helper">Na unidade de compra</span>
+            </div>
+
+            <div class="form-group">
+              <label for="ingMinStock">Estoque Mínimo</label>
+              <input type="number" id="ingMinStock" class="form-control" step="0.01" value="1">
+              <span class="form-helper">Gera alerta de reposição</span>
+            </div>
+          </div>
+
+          <!-- Card de Visualização do Preço de Custo Unitário em Tempo Real -->
+          <div class="unit-cost-preview-box" id="modalIngCostPreviewBox" style="background: linear-gradient(145deg, rgba(245, 158, 11, 0.14), rgba(224, 93, 56, 0.08)); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: var(--radius-md); padding: 10px 14px; margin: 10px 0; display: flex; flex-direction: column; gap: 3px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
+            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--accent-gold); font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+              <span>⚡</span> PREÇO DE CUSTO UNITÁRIO CALCULADO
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+              <div style="font-family: var(--font-heading); font-size: 1.35rem; font-weight: 800; color: #fff;" id="modalIngCalculatedCost">
+                R$ 0,00 / g
+              </div>
+              <div style="font-size: 0.8rem; color: var(--accent-gold); font-weight: 600;" id="modalIngCalculatedCostAlt">
+                (Equivalente a R$ 0,00 / kg)
+              </div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-dim);" id="modalIngFormulaExplanation">
+              Fórmula: (Preço da Embalagem ÷ Quantidade) × Fator de Correção
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="ingNotes">Observações Técnicas</label>
+            <input type="text" id="ingNotes" class="form-control" placeholder="Ex: Marca recomendada, conservação em geladeira">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalIngredient">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Insumo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       MODAL: CADASTRO / EDIÇÃO DE CATEGORIA (DIVISÃO CLARA)
+       ======================================================= -->
+  <div class="modal-overlay" id="modalCategory">
+    <div class="modal-container" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 id="modalCategoryTitle">Cadastrar Nova Categoria</h3>
+        <button type="button" class="modal-close-btn" data-close="modalCategory">&times;</button>
+      </div>
+      <form id="formCategory">
+        <input type="hidden" id="catId">
+        <div class="modal-body">
+          <!-- Seletor Visual de Divisão: Insumo vs Receita -->
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 8px;">Divisão / Aplicação da Categoria *</label>
+            <div class="category-type-cards">
+              <label class="category-type-card active" id="labelCatTypeInsumo">
+                <input type="radio" name="catTypeRadio" value="insumo" id="catTypeInsumo" checked>
+                <div class="card-inner">
+                  <span class="card-icon">🌾</span>
+                  <div class="card-info">
+                    <strong>Para Insumos</strong>
+                    <span>Farinhas, laticínios, embalagens, frutas, carnes</span>
+                  </div>
+                </div>
+              </label>
+              <label class="category-type-card" id="labelCatTypeReceita">
+                <input type="radio" name="catTypeRadio" value="receita" id="catTypeReceita">
+                <div class="card-inner">
+                  <span class="card-icon">📜</span>
+                  <div class="card-info">
+                    <strong>Para Receitas</strong>
+                    <span>Geleias, antepastos, bolos, tortas, doces</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <label for="catName">Nome da Categoria *</label>
+            <input type="text" id="catName" class="form-control" required placeholder="Ex: Laticínios, Geleias Artesanais, Embalagens">
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="catIcon">Ícone / Emoji</label>
+              <input type="text" id="catIcon" class="form-control" maxlength="4" value="🌾" placeholder="🌾">
+            </div>
+
+            <div class="form-group">
+              <label style="color: var(--text-dim); font-size: 0.76rem;">Sugestão Rápida</label>
+              <div style="display: flex; gap: 8px; margin-top: 4px;" id="catQuickIcons">
+                <button type="button" class="btn btn-sm btn-outline cat-icon-pick" data-icon="🌾">🌾</button>
+                <button type="button" class="btn btn-sm btn-outline cat-icon-pick" data-icon="🥛">🥛</button>
+                <button type="button" class="btn btn-sm btn-outline cat-icon-pick" data-icon="📦">📦</button>
+                <button type="button" class="btn btn-sm btn-outline cat-icon-pick" data-icon="🍓">🍓</button>
+                <button type="button" class="btn btn-sm btn-outline cat-icon-pick" data-icon="🍰">🍰</button>
+                <button type="button" class="btn btn-sm btn-outline cat-icon-pick" data-icon="🍫">🍫</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalCategory">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveCategory">Salvar Categoria</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       MODAL 2: CADASTRO / EDIÇÃO DE FICHA TÉCNICA
+       ======================================================= -->
+  <div class="modal-overlay" id="modalRecipe">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h3 id="modalRecipeTitle">Nova Ficha Técnica de Receita</h3>
+        <button type="button" class="modal-close-btn" data-close="modalRecipe">&times;</button>
+      </div>
+      <form id="formRecipe">
+        <input type="hidden" id="recId">
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="recName">Nome da Receita *</label>
+              <input type="text" id="recName" class="form-control" required placeholder="Ex: Brownie Fudgy Gourmet">
+            </div>
+
+            <div class="form-group">
+              <label for="recCategory">Categoria *</label>
+              <input type="text" id="recCategory" class="form-control" required placeholder="Ex: Bolos, Doces Finos, Tortas" list="listRecipeCategories">
+              <datalist id="listRecipeCategories">
+                <!-- Preenchido dinamicamente com categorias cadastradas -->
+              </datalist>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="recYieldUnits">Rendimento (Nº Porções/Unid) *</label>
+              <input type="number" id="recYieldUnits" class="form-control" step="any" min="0.001" required value="1">
+            </div>
+
+            <div class="form-group">
+              <label for="recYieldUnitName">Descrição do Rendimento</label>
+              <input type="text" id="recYieldUnitName" class="form-control" placeholder="Ex: fatias de 80g, unidades">
+            </div>
+
+            <div class="form-group">
+              <label for="recPrepTime">Tempo de Preparo (Minutos)</label>
+              <input type="number" id="recPrepTime" class="form-control" step="any" min="0" value="45">
+            </div>
+          </div>
+
+          <!-- Tabela Dinâmica de Ingredientes da Receita com Seleção Categoria -> Ingrediente -->
+          <div style="margin: 20px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <h4 style="font-family: var(--font-heading); font-size: 1.05rem; color: #fff;">Lista de Insumos da Receita</h4>
+                <span style="font-size: 0.74rem; color: var(--text-dim);">1º Escolha a categoria para filtrar os insumos, depois selecione o item desejado</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" id="btnAddRecipeItemRow">+ Adicionar Ingrediente</button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="recipe-items-table">
+                <thead>
+                  <tr>
+                    <th style="width: 28%;">1º Escolha a Categoria</th>
+                    <th style="width: 32%;">2º Escolha o Insumo</th>
+                    <th style="width: 18%;">Qtd. Utilizada</th>
+                    <th style="width: 14%;">Unidade</th>
+                    <th style="width: 8%; text-align: center;">Remover</th>
+                  </tr>
+                </thead>
+                <tbody id="recipeItemsTbody">
+                  <!-- Linhas dinâmicas -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Custos Indiretos da Receita -->
+          <h4 style="font-family: var(--font-heading); font-size: 1.05rem; color: #fff; margin-bottom: 12px;">Custos Indiretos & Rateio</h4>
+          <div class="form-grid-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px;">
+            <div class="form-group">
+              <label for="recOperationalPercent">Gás/Luz (%)</label>
+              <input type="number" id="recOperationalPercent" class="form-control" step="0.5" value="10">
+              <span class="form-helper">% s/ insumos</span>
+            </div>
+
+            <div class="form-group">
+              <label for="recHourlyRate">Mão de Obra (R$/h)</label>
+              <input type="number" id="recHourlyRate" class="form-control" step="1" value="22">
+              <span class="form-helper">Custo por hora</span>
+            </div>
+
+            <div class="form-group">
+              <label for="recPackagingCost">Embalagem Lote (R$)</label>
+              <input type="number" id="recPackagingCost" class="form-control" step="0.50" value="0">
+              <span class="form-helper">Papel, forma etc</span>
+            </div>
+
+            <div class="form-group">
+              <label for="recLossPercent">Perda Técnica (%)</label>
+              <input type="number" id="recLossPercent" class="form-control" step="0.5" value="2">
+              <span class="form-helper">Sobra na tigela/batedeira</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <label for="recInstructions">Modo de Preparo Passo a Passo</label>
+            <textarea id="recInstructions" class="form-control" rows="4" placeholder="Descreva os passos para a equipe de cozinha..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalRecipe">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Ficha Técnica</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       MODAL 3: CADASTRO / EDIÇÃO DE PRODUTO DO CATÁLOGO
+       ======================================================= -->
+  <div class="modal-overlay" id="modalProduct">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modalProductTitle">Novo Produto Comercial</h3>
+        <button type="button" class="modal-close-btn" data-close="modalProduct">&times;</button>
+      </div>
+      <form id="formProduct">
+        <input type="hidden" id="prodId">
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="prodName">Nome Comercial *</label>
+              <input type="text" id="prodName" class="form-control" required placeholder="Ex: Brownie Trufado Fatia">
+            </div>
+
+            <div class="form-group">
+              <label for="prodCategory">Categoria *</label>
+              <input type="text" id="prodCategory" class="form-control" required placeholder="Ex: Doces, Bolos, Salgados">
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="prodRecipeId">Ficha Técnica Vinculada *</label>
+              <select id="prodRecipeId" class="form-control" required>
+                <!-- Preenchido via JS -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="prodPortionCount">Porções da Receita por Unidade</label>
+              <input type="number" id="prodPortionCount" class="form-control" step="0.1" value="1" required>
+              <span class="form-helper">Ex: 1 se for 1 fatia, ou o total da receita se for o bolo inteiro</span>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="prodSalePrice">Preço de Venda (R$) *</label>
+              <input type="number" id="prodSalePrice" class="form-control" step="0.50" required placeholder="Ex: 15.00">
+            </div>
+
+            <div class="form-group">
+              <label for="prodPackaging">Embalagem Individual (R$)</label>
+              <input type="number" id="prodPackaging" class="form-control" step="0.10" value="0.80">
+            </div>
+
+            <div class="form-group">
+              <label for="prodIcon">Ícone / Emoji</label>
+              <input type="text" id="prodIcon" class="form-control" value="🧁" maxlength="4">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="prodDescription">Descrição Comercial (para o cliente)</label>
+            <textarea id="prodDescription" class="form-control" rows="2" placeholder="Descreva os sabores marcantes do produto..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalProduct">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       MODAL 4: REGISTRO DE VENDA (PDV RÁPIDO)
+       ======================================================= -->
+  <div class="modal-overlay" id="modalSale">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h3>Registrar Nova Venda / Pedido</h3>
+        <button type="button" class="modal-close-btn" data-close="modalSale">&times;</button>
+      </div>
+      <form id="formSale">
+        <div class="modal-body">
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="saleClientName">Nome do Cliente</label>
+              <input type="text" id="saleClientName" class="form-control" placeholder="Ex: Mariana Silva" value="Cliente Balcão">
+            </div>
+
+            <div class="form-group">
+              <label for="salePaymentMethod">Forma de Pagamento *</label>
+              <select id="salePaymentMethod" class="form-control" required>
+                <option value="Pix">Pix (Sem taxa)</option>
+                <option value="Cartão de Crédito">Cartão de Crédito (3.2% taxa)</option>
+                <option value="Cartão de Débito">Cartão de Débito (1.9% taxa)</option>
+                <option value="Dinheiro">Dinheiro (Sem taxa)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="saleDate">Data da Venda</label>
+              <input type="datetime-local" id="saleDate" class="form-control">
+            </div>
+          </div>
+
+          <!-- Seleção de Itens da Venda -->
+          <div style="background-color: rgba(0, 0, 0, 0.25); padding: 16px; border-radius: var(--radius-md); margin: 16px 0;">
+            <div style="display: flex; gap: 12px; align-items: flex-end; margin-bottom: 12px; flex-wrap: wrap;">
+              <div style="flex-grow: 1; min-width: 200px;">
+                <label for="saleSelectProduct" style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px;">Selecione o Produto</label>
+                <select id="saleSelectProduct" class="form-control">
+                  <!-- Preenchido via JS -->
+                </select>
+              </div>
+              <div style="width: 100px;">
+                <label for="saleProductQty" style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px;">Qtd.</label>
+                <input type="number" id="saleProductQty" class="form-control" min="1" value="1">
+              </div>
+              <button type="button" class="btn btn-secondary" id="btnAddSaleItem">+ Adicionar ao Pedido</button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Preço Un.</th>
+                    <th>Qtd.</th>
+                    <th>Subtotal</th>
+                    <th>Custo CMV</th>
+                    <th style="text-align: right;">Remover</th>
+                  </tr>
+                </thead>
+                <tbody id="saleItemsTbody">
+                  <!-- Itens do carrinho -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Resumo Financeiro da Venda em Tempo Real -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: rgba(255, 255, 255, 0.04); padding: 14px 18px; border-radius: var(--radius-md);">
+            <div>
+              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Total Bruto</span>
+              <div id="saleSummaryGross" style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: #fff;">R$ 0,00</div>
+            </div>
+            <div>
+              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">CMV (Custo)</span>
+              <div id="saleSummaryCost" style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: var(--accent-rose);">R$ 0,00</div>
+            </div>
+            <div>
+              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Taxas Previstas</span>
+              <div id="saleSummaryFees" style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: var(--accent-gold);">R$ 0,00</div>
+            </div>
+            <div>
+              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Lucro Líquido Real</span>
+              <div id="saleSummaryNet" style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: var(--accent-emerald);">R$ 0,00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalSale">Cancelar</button>
+          <button type="submit" class="btn btn-gold">Finalizar Venda & Baixar Estoque</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       MODAL 5: AJUSTE RÁPIDO DE ESTOQUE
+       ======================================================= -->
+  <div class="modal-overlay" id="modalStockAdjust">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Ajustar Estoque</h3>
+        <button type="button" class="modal-close-btn" data-close="modalStockAdjust">&times;</button>
+      </div>
+      <form id="formStockAdjust">
+        <input type="hidden" id="stockAdjustIngId">
+        <div class="modal-body">
+          <p id="stockAdjustIngName" style="font-weight: 600; font-size: 1.05rem; margin-bottom: 12px; color: #fff;"></p>
+          <div class="form-group">
+            <label for="stockAdjustNewQty">Nova Quantidade em Estoque</label>
+            <div class="input-with-affix">
+              <span class="input-affix" id="stockAdjustUnitAffix">kg</span>
+              <input type="number" id="stockAdjustNewQty" class="form-control" step="0.01" required>
+            </div>
+            <span class="form-helper">Substitui o saldo atual em estoque</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalStockAdjust">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Ajuste</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONTAINER DE TOAST NOTIFICATIONS -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ÁREA DE IMPRESSÃO OCULTA PARA FICHA TÉCNICA -->
+  <div id="printArea" class="print-area" style="display: none;"></div>
+
+  <!-- Scripts da Aplicação -->
+  <script src="js/calculator.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
