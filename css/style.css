@@ -1521,3 +1521,173 @@ textarea.form-control:focus {
   font-size: 1.2rem;
   cursor: pointer;
 }
+
+/* =========================================================================
+   NO-HORIZONTAL-SCROLL TABLES & CATEGORY DETAIL VIEW
+   ========================================================================= */
+.category-hint-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(224, 93, 56, 0.04));
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--accent-gold);
+}
+
+.table-fit-container {
+  width: 100%;
+  overflow-x: hidden !important;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.table-fit {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+
+.table-fit th {
+  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-fit td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  vertical-align: middle;
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-fit tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.table-fit tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.table-fit tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Linha clicável de categoria */
+.category-row-clickable {
+  cursor: pointer;
+}
+
+.category-row-clickable:hover {
+  background: rgba(245, 158, 11, 0.07) !important;
+}
+
+.category-row-clickable:hover td strong {
+  color: var(--accent-gold);
+}
+
+/* Indicadores KPI da Categoria */
+.cat-kpi-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.cat-kpi-item {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.cat-kpi-label {
+  display: block;
+  font-size: 0.70rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.cat-kpi-value {
+  font-size: 1.15rem;
+  color: #fff;
+  font-weight: 700;
+  font-family: var(--font-heading);
+}
+
+.cat-kpi-value.gold {
+  color: var(--accent-gold);
+}
+
+.cat-kpi-value.emerald {
+  color: var(--accent-emerald);
+}
+
+.cat-kpi-value.danger {
+  color: var(--accent-rose);
+}
+
+/* Controles de Estoque Rápido na Linha */
+.stock-control-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+}
+
+.btn-stock-step {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all var(--transition-fast);
+  padding: 0;
+  line-height: 1;
+}
+
+.btn-stock-step:hover {
+  background: var(--accent-gold);
+  color: #000;
+  border-color: var(--accent-gold);
+}
+
+.stock-value-display {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  min-width: 55px;
+  text-align: center;
+}
+

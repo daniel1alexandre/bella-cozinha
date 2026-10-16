@@ -36,17 +36,11 @@
             <span>Dashboard</span>
           </button>
         </li>
-        <li class="nav-item" data-tab="ingredients">
-          <button type="button">
-            <span class="nav-icon">🌾</span>
-            <span>Insumos & Estoque</span>
-            <span class="nav-badge" id="sidebarStockBadge" style="display: none;">0</span>
-          </button>
-        </li>
         <li class="nav-item" data-tab="categories">
           <button type="button">
             <span class="nav-icon">🏷️</span>
-            <span>Categorias</span>
+            <span>Categorias & Insumos</span>
+            <span class="nav-badge" id="sidebarStockBadge" style="display: none;">0</span>
           </button>
         </li>
         <li class="nav-item" data-tab="recipes">
@@ -215,105 +209,197 @@
       </section>
 
       <!-- ==========================================
-           ABA 2: INSUMOS & ESTOQUE
-           ========================================== -->
-      <section id="tab-ingredients" class="tab-content" style="display: none;">
-        <div class="filter-bar">
-          <div class="search-input-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="inputSearchIngredients" placeholder="Buscar insumo por nome ou fornecedor...">
-          </div>
-          <div class="filter-group">
-            <select id="selectFilterIngredientCategory" class="form-control">
-              <option value="">Todas as Categorias</option>
-            </select>
-            <select id="selectFilterIngredientStock" class="form-control">
-              <option value="all">Todos os Estoques</option>
-              <option value="low">Abaixo do Mínimo (Alerta)</option>
-              <option value="normal">Estoque Normal</option>
-            </select>
-            <button type="button" class="btn btn-primary" id="btnOpenNewIngredientModal">
-              <span>+</span> Novo Insumo
-            </button>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="custom-table" id="tableIngredients">
-            <thead>
-              <tr>
-                <th>Insumo</th>
-                <th>Categoria</th>
-                <th>Embalagem de Compra</th>
-                <th>Preço Pago</th>
-                <th>Custo Unitário Base</th>
-                <th>Fator Corr. (FC)</th>
-                <th>Estoque Atual</th>
-                <th>Status</th>
-                <th style="text-align: right;">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyIngredients">
-              <!-- Renderizado dinamicamente -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ==========================================
-           ABA: CATEGORIAS (DIVISÃO: INSUMOS & RECEITAS)
+           ABA 2: CATEGORIAS & INSUMOS (INTEGRADO)
            ========================================== -->
       <section id="tab-categories" class="tab-content" style="display: none;">
-        <!-- Navegação / Divisão Superior de Categorias -->
-        <div class="category-subnav">
-          <button type="button" class="category-subnav-btn active" id="btnCatViewInsumos" data-cat-view="insumo">
-            <span class="subnav-icon">🌾</span>
-            <span>Categorias de Insumos</span>
-            <span class="subnav-badge" id="badgeCatInsumosCount">0</span>
-          </button>
-          <button type="button" class="category-subnav-btn" id="btnCatViewReceitas" data-cat-view="receita">
-            <span class="subnav-icon">📜</span>
-            <span>Categorias de Receitas</span>
-            <span class="subnav-badge" id="badgeCatReceitasCount">0</span>
-          </button>
-          <button type="button" class="category-subnav-btn" id="btnCatViewTodas" data-cat-view="all">
-            <span class="subnav-icon">🏷️</span>
-            <span>Todas as Categorias</span>
-            <span class="subnav-badge" id="badgeCatTodasCount">0</span>
-          </button>
-        </div>
-
-        <div class="filter-bar" style="margin-top: 14px;">
-          <div class="search-input-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="inputSearchCategories" placeholder="Buscar categoria por nome...">
-          </div>
-          <div class="filter-group">
-            <button type="button" class="btn btn-primary" id="btnOpenNewCategoryInsumoModal" title="Cadastrar nova categoria de insumo ou embalagem">
-              <span>🌾 +</span> Nova Cat. Insumo
+        
+        <!-- VISÃO 1: LISTAGEM PRINCIPAL DE CATEGORIAS / INSUMOS GERAIS -->
+        <div id="categoriesMainView">
+          <!-- Navegação / Divisão Superior de Categorias -->
+          <div class="category-subnav">
+            <button type="button" class="category-subnav-btn active" id="btnCatViewInsumos" data-cat-view="insumo">
+              <span class="subnav-icon">🌾</span>
+              <span>Categorias de Insumos</span>
+              <span class="subnav-badge" id="badgeCatInsumosCount">0</span>
             </button>
-            <button type="button" class="btn btn-secondary" id="btnOpenNewCategoryReceitaModal" title="Cadastrar nova categoria de receitas gastronômicas">
-              <span>📜 +</span> Nova Cat. Receita
+            <button type="button" class="category-subnav-btn" id="btnCatViewReceitas" data-cat-view="receita">
+              <span class="subnav-icon">📜</span>
+              <span>Categorias de Receitas</span>
+              <span class="subnav-badge" id="badgeCatReceitasCount">0</span>
+            </button>
+            <button type="button" class="category-subnav-btn" id="btnCatViewTodas" data-cat-view="all">
+              <span class="subnav-icon">🏷️</span>
+              <span>Todas as Categorias</span>
+              <span class="subnav-badge" id="badgeCatTodasCount">0</span>
+            </button>
+            <button type="button" class="category-subnav-btn" id="btnCatViewAllIngredients" data-cat-view="all-ingredients">
+              <span class="subnav-icon">📦</span>
+              <span>Todos os Insumos & Estoque Geral</span>
+              <span class="subnav-badge" id="badgeAllIngredientsCount">0</span>
             </button>
           </div>
+
+          <!-- Barra de Filtros para Categorias -->
+          <div class="filter-bar" style="margin-top: 14px;" id="categoriesFilterBar">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="inputSearchCategories" placeholder="Buscar categoria por nome...">
+            </div>
+            <div class="filter-group">
+              <button type="button" class="btn btn-primary" id="btnOpenNewCategoryInsumoModal" title="Cadastrar nova categoria de insumo ou embalagem">
+                <span>🌾 +</span> Nova Cat. Insumo
+              </button>
+              <button type="button" class="btn btn-secondary" id="btnOpenNewCategoryReceitaModal" title="Cadastrar nova categoria de receitas gastronômicas">
+                <span>📜 +</span> Nova Cat. Receita
+              </button>
+            </div>
+          </div>
+
+          <!-- Dica visual para o usuário -->
+          <div class="category-hint-banner" id="categoryHintBanner">
+            <span>💡</span>
+            <span>Clique em qualquer categoria abaixo para abrir a tela de gerenciamento de insumos e controle de estoque daquela categoria.</span>
+          </div>
+
+          <!-- Tabela de Categorias -->
+          <div class="table-fit-container" id="categoriesTableWrapper">
+            <table class="table-fit custom-table" id="tableCategories">
+              <thead>
+                <tr>
+                  <th style="width: 50px; text-align: center;">Ícone</th>
+                  <th style="width: 28%;">Nome da Categoria</th>
+                  <th style="width: 20%;">Divisão / Tipo</th>
+                  <th style="width: 18%;">Insumos Cadastrados</th>
+                  <th style="width: 14%;">Receitas</th>
+                  <th style="width: 20%; text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyCategories">
+                <!-- Renderizado dinamicamente via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Tabela de Todos os Insumos (Visão Geral - SEM Rolagem Horizontal) -->
+          <div id="allIngredientsWrapper" style="display: none;">
+            <div class="filter-bar" style="margin-top: 10px;">
+              <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="inputSearchAllIngredients" placeholder="Buscar insumo em todas as categorias...">
+              </div>
+              <div class="filter-group">
+                <select id="selectFilterAllStock" class="form-control">
+                  <option value="all">Todos os Estoques</option>
+                  <option value="low">Abaixo do Mínimo (Alerta)</option>
+                  <option value="normal">Estoque Normal</option>
+                </select>
+                <button type="button" class="btn btn-primary" id="btnOpenNewIngredientGlobalModal">
+                  <span>+</span> Novo Insumo
+                </button>
+              </div>
+            </div>
+
+            <div class="table-fit-container">
+              <table class="table-fit custom-table" id="tableAllIngredients">
+                <thead>
+                  <tr>
+                    <th style="width: 28%;">Insumo / Fornecedor</th>
+                    <th style="width: 14%;">Categoria</th>
+                    <th style="width: 16%;">Preço Compra</th>
+                    <th style="width: 18%;">Custo Unitário Base</th>
+                    <th style="width: 14%;">Saldo em Estoque</th>
+                    <th style="width: 10%; text-align: right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyAllIngredients">
+                  <!-- Renderizado dinamicamente via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="custom-table" id="tableCategories">
-            <thead>
-              <tr>
-                <th style="width: 50px;">Ícone</th>
-                <th>Nome da Categoria</th>
-                <th>Divisão / Tipo</th>
-                <th>Insumos Vinculados</th>
-                <th>Receitas Vinculadas</th>
-                <th style="text-align: right;">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyCategories">
-              <!-- Renderizado dinamicamente -->
-            </tbody>
-          </table>
+        <!-- VISÃO 2: TELA DA CATEGORIA EM QUESTÃO (INSUMOS & QUANTIDADE EM ESTOQUE) -->
+        <div id="categoryDetailView" style="display: none;">
+          <!-- Cabeçalho da Categoria -->
+          <div class="category-detail-card panel-card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btnBackToCategoriesList" title="Voltar para Todas as Categorias">
+                  <span>←</span> Voltar para Categorias
+                </button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span id="catDetailIcon" style="font-size: 2.2rem; line-height: 1;">🌾</span>
+                  <div>
+                    <h2 id="catDetailName" style="font-family: var(--font-heading); font-size: 1.35rem; color: #fff; margin: 0; line-height: 1.2;">Nome da Categoria</h2>
+                    <span id="catDetailTypeBadge" class="badge badge-warning" style="margin-top: 4px;">🌾 Categoria de Insumos</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary" id="btnCatDetailNewIngredient">
+                  <span>+</span> Incluir Novo Insumo
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnCatDetailEditCategory">
+                  <span>✏️</span> Editar Categoria
+                </button>
+              </div>
+            </div>
+
+            <!-- Resumo e Métricas da Categoria -->
+            <div class="cat-kpi-bar">
+              <div class="cat-kpi-item">
+                <span class="cat-kpi-label">Insumos Nesta Categoria</span>
+                <strong class="cat-kpi-value" id="catDetailTotalItems">0</strong>
+              </div>
+              <div class="cat-kpi-item">
+                <span class="cat-kpi-label">Valor Estimado em Estoque</span>
+                <strong class="cat-kpi-value gold" id="catDetailTotalValue">R$ 0,00</strong>
+              </div>
+              <div class="cat-kpi-item">
+                <span class="cat-kpi-label">Status do Estoque</span>
+                <strong class="cat-kpi-value" id="catDetailStockStatus">Em Dia</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de Filtros Internos da Categoria -->
+          <div class="filter-bar">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="inputSearchCategoryIngredients" placeholder="Filtrar insumo nesta categoria...">
+            </div>
+            <div class="filter-group">
+              <select id="selectFilterCategoryStock" class="form-control">
+                <option value="all">Todos os Estoques</option>
+                <option value="low">Abaixo do Mínimo (Alerta)</option>
+                <option value="normal">Estoque Normal</option>
+              </select>
+              <button type="button" class="btn btn-primary" id="btnCatDetailNewIngredientBottom">
+                <span>+</span> Incluir Insumo
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabela de Insumos da Categoria Selecionada (100% Fit, SEM Rolagem Horizontal) -->
+          <div class="table-fit-container">
+            <table class="table-fit custom-table" id="tableCategoryIngredients">
+              <thead>
+                <tr>
+                  <th style="width: 28%;">Insumo / Fornecedor</th>
+                  <th style="width: 16%;">Preço de Compra</th>
+                  <th style="width: 20%;">Custo Unitário Base & FC</th>
+                  <th style="width: 18%;">Quantidade em Estoque</th>
+                  <th style="width: 10%;">Status</th>
+                  <th style="width: 8%; text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyCategoryIngredients">
+                <!-- Renderizado dinamicamente via JS -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

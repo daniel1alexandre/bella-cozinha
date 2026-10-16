@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
       subtitle: 'Controle de custos unitários, embalagens de compra e estoque mínimo'
     },
     categories: {
-      title: 'Gestão de Categorias',
-      subtitle: 'Cadastre categorias com antecedência para organizar insumos e receitas'
+      title: 'Categorias, Insumos & Estoque',
+      subtitle: 'Gerencie categorias, insumos e quantidades em estoque em um único lugar'
     },
     recipes: {
       title: 'Fichas Técnicas das Receitas',
@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   function switchTab(tabId, extraParam = null) {
+    if (tabId === 'ingredients') {
+      tabId = 'categories';
+    }
     state.currentTab = tabId;
 
     // Atualiza Sidebar
@@ -92,10 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializa ou atualiza o conteúdo da aba específica
     if (tabId === 'dashboard') {
       renderDashboard();
-    } else if (tabId === 'ingredients') {
-      renderIngredientsTable();
     } else if (tabId === 'categories') {
-      renderCategoriesTable();
+      if (extraParam) {
+        openCategoryDetailView(extraParam);
+      } else {
+        closeCategoryDetailView();
+      }
     } else if (tabId === 'recipes') {
       renderRecipes();
     } else if (tabId === 'pricing') {
@@ -121,25 +126,34 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.innerHTML = '<span>✨</span> Registrar Venda';
       btn.addEventListener('click', () => openNewSaleModal());
       topbarActionArea.appendChild(btn);
-    } else if (tabId === 'ingredients') {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-primary';
-      btn.innerHTML = '<span>+</span> Novo Insumo';
-      btn.addEventListener('click', () => openIngredientModal());
-      topbarActionArea.appendChild(btn);
     } else if (tabId === 'categories') {
-      const btnInsumo = document.createElement('button');
-      btnInsumo.className = 'btn btn-primary';
-      btnInsumo.innerHTML = '<span>🌾 +</span> Cat. Insumo';
-      btnInsumo.addEventListener('click', () => openCategoryModal(null, 'insumo'));
+      if (state.selectedCategoryName) {
+        const btnVoltar = document.createElement('button');
+        btnVoltar.className = 'btn btn-outline btn-sm';
+        btnVoltar.innerHTML = '<span>←</span> Categorias';
+        btnVoltar.addEventListener('click', () => closeCategoryDetailView());
 
-      const btnReceita = document.createElement('button');
-      btnReceita.className = 'btn btn-secondary';
-      btnReceita.innerHTML = '<span>📜 +</span> Cat. Receita';
-      btnReceita.addEventListener('click', () => openCategoryModal(null, 'receita'));
+        const btnNovo = document.createElement('button');
+        btnNovo.className = 'btn btn-primary';
+        btnNovo.innerHTML = '<span>+</span> Incluir Insumo';
+        btnNovo.addEventListener('click', () => openIngredientModal(null, state.selectedCategoryName));
 
-      topbarActionArea.appendChild(btnInsumo);
-      topbarActionArea.appendChild(btnReceita);
+        topbarActionArea.appendChild(btnVoltar);
+        topbarActionArea.appendChild(btnNovo);
+      } else {
+        const btnInsumo = document.createElement('button');
+        btnInsumo.className = 'btn btn-primary';
+        btnInsumo.innerHTML = '<span>🌾 +</span> Cat. Insumo';
+        btnInsumo.addEventListener('click', () => openCategoryModal(null, 'insumo'));
+
+        const btnReceita = document.createElement('button');
+        btnReceita.className = 'btn btn-secondary';
+        btnReceita.innerHTML = '<span>📜 +</span> Cat. Receita';
+        btnReceita.addEventListener('click', () => openCategoryModal(null, 'receita'));
+
+        topbarActionArea.appendChild(btnInsumo);
+        topbarActionArea.appendChild(btnReceita);
+      }
     } else if (tabId === 'recipes') {
       const btn = document.createElement('button');
       btn.className = 'btn btn-primary';
@@ -689,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Modal Insumo: Abertura e Salvamento
-  function openIngredientModal(ingredientId = null) {
+  function openIngredientModal(ingredientId = null, defaultCategory = null) {
     const modal = document.getElementById('modalIngredient');
     const title = document.getElementById('modalIngredientTitle');
     const form = document.getElementById('formIngredient');
@@ -712,8 +726,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ingNotes').value = ing.notes || '';
       }
     } else {
-      title.textContent = 'Cadastrar Novo Insumo';
+      const targetCat = defaultCategory || state.selectedCategoryName || '';
+      title.textContent = targetCat ? `Incluir Novo Insumo em "${targetCat}"` : 'Cadastrar Novo Insumo';
       document.getElementById('ingId').value = '';
+      if (targetCat) {
+        document.getElementById('ingCategory').value = targetCat;
+      }
       document.getElementById('ingCorrectionFactor').value = '1.00';
       document.getElementById('ingMinStock').value = '1';
     }
@@ -747,7 +765,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     closeModal('modalIngredient');
-    renderIngredientsTable();
+    if (state.selectedCategoryName) {
+      renderCategoryIngredientsTable(state.selectedCategoryName);
+    }
+    renderCategoriesTable();
+    renderAllIngredientsTable();
     renderRecipes();
     renderProductsGrid();
     renderDashboard();
@@ -777,13 +799,17 @@ document.addEventListener('DOMContentLoaded', () => {
       window.db.updateIngredient(id, { currentStock: newQty });
       showToast('Estoque atualizado com sucesso!');
       closeModal('modalStockAdjust');
-      renderIngredientsTable();
+      if (state.selectedCategoryName) {
+        renderCategoryIngredientsTable(state.selectedCategoryName);
+      }
+      renderCategoriesTable();
+      renderAllIngredientsTable();
       renderDashboard();
     }
   });
 
   // =========================================================================
-  // GESTÃO DE CATEGORIAS (DIVISÃO ESTABELECIDA: INSUMOS VS RECEITAS)
+  // GESTÃO DE CATEGORIAS & INSUMOS INTEGRADOS
   // =========================================================================
   function renderCategoriesTable() {
     const categories = window.db.getCategories();
@@ -796,13 +822,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const insumosCount = categories.filter(c => c.type === 'insumo').length;
     const receitasCount = categories.filter(c => c.type === 'receita').length;
     const totalCount = categories.length;
+    const allIngsCount = ingredients.length;
 
     const badgeInsumos = document.getElementById('badgeCatInsumosCount');
     const badgeReceitas = document.getElementById('badgeCatReceitasCount');
     const badgeTodas = document.getElementById('badgeCatTodasCount');
+    const badgeAllIngs = document.getElementById('badgeAllIngredientsCount');
     if (badgeInsumos) badgeInsumos.textContent = insumosCount;
     if (badgeReceitas) badgeReceitas.textContent = receitasCount;
     if (badgeTodas) badgeTodas.textContent = totalCount;
+    if (badgeAllIngs) badgeAllIngs.textContent = allIngsCount;
 
     // Atualiza botões ativos no subnav
     document.querySelectorAll('.category-subnav-btn').forEach(btn => {
@@ -813,6 +842,26 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.remove('active');
       }
     });
+
+    // Se estiver na visão "Todos os Insumos & Estoque Geral"
+    const catFilterBar = document.getElementById('categoriesFilterBar');
+    const catHintBanner = document.getElementById('categoryHintBanner');
+    const catTableWrapper = document.getElementById('categoriesTableWrapper');
+    const allIngWrapper = document.getElementById('allIngredientsWrapper');
+
+    if (state.categoryView === 'all-ingredients') {
+      if (catFilterBar) catFilterBar.style.display = 'none';
+      if (catHintBanner) catHintBanner.style.display = 'none';
+      if (catTableWrapper) catTableWrapper.style.display = 'none';
+      if (allIngWrapper) allIngWrapper.style.display = 'block';
+      renderAllIngredientsTable();
+      return;
+    } else {
+      if (catFilterBar) catFilterBar.style.display = 'flex';
+      if (catHintBanner) catHintBanner.style.display = 'flex';
+      if (catTableWrapper) catTableWrapper.style.display = 'block';
+      if (allIngWrapper) allIngWrapper.style.display = 'none';
+    }
 
     if (!tbody) return;
 
@@ -844,8 +893,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tbody.innerHTML = filtered.map(cat => {
       const isRecipe = cat.type === 'receita';
-      const ingCount = ingredients.filter(i => i.category === cat.name).length;
-      const recCount = recipes.filter(r => r.category === cat.name).length;
+      const ingCount = ingredients.filter(i => (i.category || '').toLowerCase() === cat.name.toLowerCase()).length;
+      const recCount = recipes.filter(r => (r.category || '').toLowerCase() === cat.name.toLowerCase()).length;
 
       let typeBadge = '';
       if (cat.type === 'insumo') {
@@ -855,9 +904,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       return `
-        <tr>
+        <tr class="category-row-clickable" data-name="${cat.name}">
           <td style="font-size: 1.5rem; text-align: center;">${cat.icon || (isRecipe ? '📜' : '🌾')}</td>
-          <td><strong style="color: #fff; font-size: 0.95rem;">${cat.name}</strong></td>
+          <td>
+            <strong style="color: #fff; font-size: 0.95rem;">${cat.name}</strong>
+            <div style="font-size: 0.72rem; color: var(--accent-gold); margin-top: 2px;">
+              👉 Clique para abrir insumos & estoque
+            </div>
+          </td>
           <td>${typeBadge}</td>
           <td>
             <span style="font-weight: 600; color: ${ingCount > 0 ? 'var(--accent-gold)' : 'var(--text-dim)'};">
@@ -870,6 +924,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </span>
           </td>
           <td style="text-align: right; white-space: nowrap;">
+            <button class="btn btn-sm btn-primary btn-open-cat-detail" data-name="${cat.name}" title="Abrir Insumos & Estoque desta Categoria">
+              <span>📂</span> Abrir
+            </button>
             <button class="btn btn-sm btn-secondary btn-edit-cat" data-id="${cat.id}" title="Editar Categoria">✏️</button>
             <button class="btn btn-sm btn-danger-outline btn-delete-cat" data-id="${cat.id}" data-name="${cat.name}" title="Excluir Categoria">🗑️</button>
           </td>
@@ -877,16 +934,29 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
+    // Clique na linha ou no botão Abrir abre a categoria
+    tbody.querySelectorAll('.category-row-clickable').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-edit-cat') || e.target.closest('.btn-delete-cat')) return;
+        const name = row.getAttribute('data-name');
+        if (name) openCategoryDetailView(name);
+      });
+    });
+
     tbody.querySelectorAll('.btn-edit-cat').forEach(b => {
-      b.addEventListener('click', () => openCategoryModal(b.getAttribute('data-id')));
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCategoryModal(b.getAttribute('data-id'));
+      });
     });
 
     tbody.querySelectorAll('.btn-delete-cat').forEach(b => {
-      b.addEventListener('click', () => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
         const id = b.getAttribute('data-id');
         const name = b.getAttribute('data-name');
-        const ingCount = ingredients.filter(i => i.category === name).length;
-        const recCount = recipes.filter(r => r.category === name).length;
+        const ingCount = ingredients.filter(i => (i.category || '').toLowerCase() === name.toLowerCase()).length;
+        const recCount = recipes.filter(r => (r.category || '').toLowerCase() === name.toLowerCase()).length;
 
         let msg = `Tem certeza que deseja excluir a categoria "${name}"?`;
         if (ingCount > 0 || recCount > 0) {
@@ -904,6 +974,371 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Abre a Tela da Categoria Específica (Insumos & Quantidade em Estoque)
+  function openCategoryDetailView(categoryName) {
+    state.selectedCategoryName = categoryName;
+    const cat = window.db.getCategories().find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+    const isRecipe = cat ? cat.type === 'receita' : false;
+    const icon = cat ? (cat.icon || (isRecipe ? '📜' : '🌾')) : '🌾';
+
+    const mainView = document.getElementById('categoriesMainView');
+    const detailView = document.getElementById('categoryDetailView');
+    if (mainView) mainView.style.display = 'none';
+    if (detailView) detailView.style.display = 'block';
+
+    const iconEl = document.getElementById('catDetailIcon');
+    const nameEl = document.getElementById('catDetailName');
+    const typeBadgeEl = document.getElementById('catDetailTypeBadge');
+    if (iconEl) iconEl.textContent = icon;
+    if (nameEl) nameEl.textContent = categoryName;
+    if (typeBadgeEl) {
+      if (isRecipe) {
+        typeBadgeEl.className = 'badge badge-success';
+        typeBadgeEl.innerHTML = '📜 Categoria de Receitas';
+      } else {
+        typeBadgeEl.className = 'badge badge-warning';
+        typeBadgeEl.innerHTML = '🌾 Categoria de Insumos';
+      }
+    }
+
+    renderTopbarActions('categories');
+    renderCategoryIngredientsTable(categoryName);
+  }
+
+  // Fecha a Tela da Categoria e Retorna para a Listagem de Categorias
+  function closeCategoryDetailView() {
+    state.selectedCategoryName = null;
+    const mainView = document.getElementById('categoriesMainView');
+    const detailView = document.getElementById('categoryDetailView');
+    if (mainView) mainView.style.display = 'block';
+    if (detailView) detailView.style.display = 'none';
+
+    renderTopbarActions('categories');
+    renderCategoriesTable();
+  }
+
+  // Renderiza a Tabela de Insumos da Categoria Selecionada (100% Fit, SEM Rolagem Horizontal)
+  function renderCategoryIngredientsTable(categoryName) {
+    const list = window.db.getIngredients();
+    const tbody = document.getElementById('tbodyCategoryIngredients');
+    const searchVal = document.getElementById('inputSearchCategoryIngredients')?.value.toLowerCase().trim() || '';
+    const stockVal = document.getElementById('selectFilterCategoryStock')?.value || 'all';
+
+    // Insumos desta categoria
+    const categoryIngs = list.filter(i => (i.category || '').toLowerCase() === categoryName.toLowerCase());
+
+    // Métricas da Categoria
+    let totalStockVal = 0;
+    let lowCount = 0;
+    categoryIngs.forEach(ing => {
+      const baseCost = GastronomyCalc.calcBaseUnitCost(ing.packagePrice, ing.packageQty, ing.packageUnit, ing.correctionFactor || 1.0);
+      totalStockVal += (parseFloat(ing.currentStock) || 0) * baseCost;
+      if ((parseFloat(ing.currentStock) || 0) <= (parseFloat(ing.minStock) || 0)) {
+        lowCount++;
+      }
+    });
+
+    const elTotalItems = document.getElementById('catDetailTotalItems');
+    const elTotalVal = document.getElementById('catDetailTotalValue');
+    const elStockStatus = document.getElementById('catDetailStockStatus');
+    if (elTotalItems) elTotalItems.textContent = `${categoryIngs.length} ${categoryIngs.length === 1 ? 'insumo' : 'insumos'}`;
+    if (elTotalVal) elTotalVal.textContent = GastronomyCalc.formatCurrency(totalStockVal);
+    if (elStockStatus) {
+      if (lowCount > 0) {
+        elStockStatus.className = 'cat-kpi-value danger';
+        elStockStatus.textContent = `⚠️ ${lowCount} em Alerta`;
+      } else {
+        elStockStatus.className = 'cat-kpi-value emerald';
+        elStockStatus.textContent = '✓ Em Dia';
+      }
+    }
+
+    // Filtros
+    const filtered = categoryIngs.filter(ing => {
+      const matchSearch = ing.name.toLowerCase().includes(searchVal) || (ing.supplier || '').toLowerCase().includes(searchVal);
+      let matchStock = true;
+      const isLow = (parseFloat(ing.currentStock) || 0) <= (parseFloat(ing.minStock) || 0);
+      if (stockVal === 'low') matchStock = isLow;
+      if (stockVal === 'normal') matchStock = !isLow;
+      return matchSearch && matchStock;
+    });
+
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 45px 20px; color: var(--text-dim);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">🌾</div>
+            <div style="font-size: 1rem; color: #fff; font-weight: 600; margin-bottom: 4px;">Nenhum insumo nesta categoria</div>
+            <div style="font-size: 0.82rem; margin-bottom: 16px;">Inclua seus insumos e defina as quantidades em estoque para compor suas fichas técnicas.</div>
+            <button type="button" class="btn btn-primary btn-sm" id="btnEmptyStateNewIng">
+              <span>+</span> Incluir Novo Insumo em "${categoryName}"
+            </button>
+          </td>
+        </tr>
+      `;
+      document.getElementById('btnEmptyStateNewIng')?.addEventListener('click', () => {
+        openIngredientModal(null, categoryName);
+      });
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(ing => {
+      const baseCost = GastronomyCalc.calcBaseUnitCost(ing.packagePrice, ing.packageQty, ing.packageUnit, ing.correctionFactor || 1.0);
+      const baseUnit = GastronomyCalc.getBaseUnit(ing.packageUnit);
+      let baseCostDisplay = `${GastronomyCalc.formatCurrency(baseCost)} / ${baseUnit}`;
+      if (baseCost < 0.01) {
+        baseCostDisplay = `R$ ${baseCost.toFixed(4).replace('.', ',')} / ${baseUnit}`;
+      }
+
+      let macroEquivalent = '';
+      if (baseUnit === 'g') {
+        macroEquivalent = `(${GastronomyCalc.formatCurrency(baseCost * 1000)}/kg)`;
+      } else if (baseUnit === 'ml') {
+        macroEquivalent = `(${GastronomyCalc.formatCurrency(baseCost * 1000)}/L)`;
+      }
+
+      const isLowStock = (parseFloat(ing.currentStock) || 0) <= (parseFloat(ing.minStock) || 0);
+      const statusBadge = isLowStock
+        ? `<span class="badge badge-danger">⚠️ Repor</span>`
+        : `<span class="badge badge-success">✓ Normal</span>`;
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: #fff; font-size: 0.92rem; line-height: 1.25;">${ing.name}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">
+              ${ing.supplier ? `Fornecedor: ${ing.supplier}` : 'Sem fornecedor'} • Emb: ${ing.packageQty} ${ing.packageUnit}
+            </div>
+          </td>
+          <td>
+            <div style="font-weight: 600; color: #fff;">${GastronomyCalc.formatCurrency(ing.packagePrice)}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 1px;">por ${ing.packageQty} ${ing.packageUnit}</div>
+          </td>
+          <td>
+            <div style="font-weight: 700; color: var(--accent-gold); font-family: var(--font-mono); font-size: 0.88rem;">${baseCostDisplay}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 1px;">FC: ${parseFloat(ing.correctionFactor || 1).toFixed(2)} ${macroEquivalent}</div>
+          </td>
+          <td>
+            <div class="stock-control-wrapper">
+              <button type="button" class="btn-stock-step btn-cat-stock-sub" data-id="${ing.id}" title="Diminuir estoque">-</button>
+              <span class="stock-value-display" style="color: ${isLowStock ? 'var(--accent-rose)' : '#fff'};">
+                ${ing.currentStock} ${ing.packageUnit}
+              </span>
+              <button type="button" class="btn-stock-step btn-cat-stock-add" data-id="${ing.id}" title="Aumentar estoque">+</button>
+            </div>
+            <div style="font-size: 0.71rem; color: var(--text-dim); margin-top: 2px;">Mín: ${ing.minStock} ${ing.packageUnit}</div>
+          </td>
+          <td>${statusBadge}</td>
+          <td style="text-align: right; white-space: nowrap;">
+            <div style="display: flex; gap: 4px; justify-content: flex-end;">
+              <button class="btn btn-sm btn-outline btn-cat-stock-adjust" data-id="${ing.id}" title="Ajustar Saldo em Estoque">📦</button>
+              <button class="btn btn-sm btn-secondary btn-cat-edit-ing" data-id="${ing.id}" title="Editar Insumo">✏️</button>
+              <button class="btn btn-sm btn-danger-outline btn-cat-delete-ing" data-id="${ing.id}" title="Excluir Insumo">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Ajuste rápido de estoque (+ / -)
+    tbody.querySelectorAll('.btn-cat-stock-add').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = b.getAttribute('data-id');
+        const ing = list.find(i => i.id === id);
+        if (ing) {
+          const step = (ing.packageUnit === 'g' || ing.packageUnit === 'ml') ? (parseFloat(ing.packageQty) || 100) : 1;
+          const newQty = Math.round(((parseFloat(ing.currentStock) || 0) + step) * 100) / 100;
+          window.db.updateIngredient(id, { currentStock: newQty });
+          showToast(`+${step} ${ing.packageUnit} adicionado ao estoque de "${ing.name}"!`);
+          renderCategoryIngredientsTable(categoryName);
+          renderDashboard();
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-cat-stock-sub').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = b.getAttribute('data-id');
+        const ing = list.find(i => i.id === id);
+        if (ing) {
+          const step = (ing.packageUnit === 'g' || ing.packageUnit === 'ml') ? (parseFloat(ing.packageQty) || 100) : 1;
+          const newQty = Math.max(0, Math.round(((parseFloat(ing.currentStock) || 0) - step) * 100) / 100);
+          window.db.updateIngredient(id, { currentStock: newQty });
+          showToast(`-${step} ${ing.packageUnit} deduzido do estoque de "${ing.name}".`);
+          renderCategoryIngredientsTable(categoryName);
+          renderDashboard();
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-cat-stock-adjust').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openStockAdjustModal(b.getAttribute('data-id'));
+      });
+    });
+
+    tbody.querySelectorAll('.btn-cat-edit-ing').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openIngredientModal(b.getAttribute('data-id'), categoryName);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-cat-delete-ing').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = b.getAttribute('data-id');
+        if (confirm('Tem certeza que deseja excluir este insumo?')) {
+          window.db.deleteIngredient(id);
+          showToast('Insumo excluído com sucesso!', 'warning');
+          renderCategoryIngredientsTable(categoryName);
+          renderCategoriesTable();
+          renderDashboard();
+        }
+      });
+    });
+  }
+
+  // Renderiza Todos os Insumos & Estoque Geral (SEM Rolagem Horizontal)
+  function renderAllIngredientsTable() {
+    const list = window.db.getIngredients();
+    const tbody = document.getElementById('tbodyAllIngredients');
+    const searchVal = document.getElementById('inputSearchAllIngredients')?.value.toLowerCase().trim() || '';
+    const stockVal = document.getElementById('selectFilterAllStock')?.value || 'all';
+
+    const filtered = list.filter(ing => {
+      const matchSearch = ing.name.toLowerCase().includes(searchVal) || 
+                          (ing.supplier || '').toLowerCase().includes(searchVal) ||
+                          (ing.category || '').toLowerCase().includes(searchVal);
+      let matchStock = true;
+      const isLow = (parseFloat(ing.currentStock) || 0) <= (parseFloat(ing.minStock) || 0);
+      if (stockVal === 'low') matchStock = isLow;
+      if (stockVal === 'normal') matchStock = !isLow;
+      return matchSearch && matchStock;
+    });
+
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">
+            Nenhum insumo encontrado para a busca.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(ing => {
+      const baseCost = GastronomyCalc.calcBaseUnitCost(ing.packagePrice, ing.packageQty, ing.packageUnit, ing.correctionFactor || 1.0);
+      const baseUnit = GastronomyCalc.getBaseUnit(ing.packageUnit);
+      let baseCostDisplay = `${GastronomyCalc.formatCurrency(baseCost)} / ${baseUnit}`;
+      if (baseCost < 0.01) {
+        baseCostDisplay = `R$ ${baseCost.toFixed(4).replace('.', ',')} / ${baseUnit}`;
+      }
+
+      const isLowStock = (parseFloat(ing.currentStock) || 0) <= (parseFloat(ing.minStock) || 0);
+      const statusBadge = isLowStock
+        ? `<span class="badge badge-danger">⚠️ Repor</span>`
+        : `<span class="badge badge-success">✓ Normal</span>`;
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: #fff; font-size: 0.90rem;">${ing.name}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 1px;">${ing.supplier || 'Sem fornecedor'} • ${ing.packageQty} ${ing.packageUnit}</div>
+          </td>
+          <td><span class="badge badge-category" style="cursor: pointer;" data-cat="${ing.category}">${ing.category}</span></td>
+          <td>
+            <div style="font-weight: 600; color: #fff;">${GastronomyCalc.formatCurrency(ing.packagePrice)}</div>
+          </td>
+          <td>
+            <div style="font-weight: 700; color: var(--accent-gold); font-family: var(--font-mono); font-size: 0.86rem;">${baseCostDisplay}</div>
+          </td>
+          <td>
+            <div class="stock-control-wrapper">
+              <button type="button" class="btn-stock-step btn-all-stock-sub" data-id="${ing.id}">-</button>
+              <span class="stock-value-display" style="color: ${isLowStock ? 'var(--accent-rose)' : '#fff'};">
+                ${ing.currentStock} ${ing.packageUnit}
+              </span>
+              <button type="button" class="btn-stock-step btn-all-stock-add" data-id="${ing.id}">+</button>
+            </div>
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <div style="display: flex; gap: 4px; justify-content: flex-end;">
+              <button class="btn btn-sm btn-outline btn-all-stock-adjust" data-id="${ing.id}" title="Ajustar Estoque">📦</button>
+              <button class="btn btn-sm btn-secondary btn-all-edit-ing" data-id="${ing.id}" title="Editar">✏️</button>
+              <button class="btn btn-sm btn-danger-outline btn-all-delete-ing" data-id="${ing.id}" title="Excluir">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('.badge-category').forEach(b => {
+      b.addEventListener('click', () => {
+        const cat = b.getAttribute('data-cat');
+        if (cat) openCategoryDetailView(cat);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-all-stock-add').forEach(b => {
+      b.addEventListener('click', () => {
+        const id = b.getAttribute('data-id');
+        const ing = list.find(i => i.id === id);
+        if (ing) {
+          const step = (ing.packageUnit === 'g' || ing.packageUnit === 'ml') ? (parseFloat(ing.packageQty) || 100) : 1;
+          const newQty = Math.round(((parseFloat(ing.currentStock) || 0) + step) * 100) / 100;
+          window.db.updateIngredient(id, { currentStock: newQty });
+          showToast(`+${step} ${ing.packageUnit} adicionado ao estoque de "${ing.name}"!`);
+          renderAllIngredientsTable();
+          renderDashboard();
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-all-stock-sub').forEach(b => {
+      b.addEventListener('click', () => {
+        const id = b.getAttribute('data-id');
+        const ing = list.find(i => i.id === id);
+        if (ing) {
+          const step = (ing.packageUnit === 'g' || ing.packageUnit === 'ml') ? (parseFloat(ing.packageQty) || 100) : 1;
+          const newQty = Math.max(0, Math.round(((parseFloat(ing.currentStock) || 0) - step) * 100) / 100);
+          window.db.updateIngredient(id, { currentStock: newQty });
+          showToast(`-${step} ${ing.packageUnit} deduzido do estoque de "${ing.name}".`);
+          renderAllIngredientsTable();
+          renderDashboard();
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-all-stock-adjust').forEach(b => {
+      b.addEventListener('click', () => openStockAdjustModal(b.getAttribute('data-id')));
+    });
+
+    tbody.querySelectorAll('.btn-all-edit-ing').forEach(b => {
+      b.addEventListener('click', () => openIngredientModal(b.getAttribute('data-id')));
+    });
+
+    tbody.querySelectorAll('.btn-all-delete-ing').forEach(b => {
+      b.addEventListener('click', () => {
+        const id = b.getAttribute('data-id');
+        if (confirm('Tem certeza que deseja excluir este insumo?')) {
+          window.db.deleteIngredient(id);
+          showToast('Insumo excluído com sucesso!', 'warning');
+          renderAllIngredientsTable();
+          renderDashboard();
+        }
+      });
+    });
+  }
+
   // Subnav Pill Click Listeners
   document.querySelectorAll('.category-subnav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -911,6 +1346,27 @@ document.addEventListener('DOMContentLoaded', () => {
       renderCategoriesTable();
     });
   });
+
+  // Event Listeners da Tela de Detalhes da Categoria
+  document.getElementById('btnBackToCategoriesList')?.addEventListener('click', () => closeCategoryDetailView());
+  document.getElementById('btnCatDetailNewIngredient')?.addEventListener('click', () => openIngredientModal(null, state.selectedCategoryName));
+  document.getElementById('btnCatDetailNewIngredientBottom')?.addEventListener('click', () => openIngredientModal(null, state.selectedCategoryName));
+  document.getElementById('btnCatDetailEditCategory')?.addEventListener('click', () => {
+    if (state.selectedCategoryName) {
+      const cat = window.db.getCategories().find(c => c.name.toLowerCase() === state.selectedCategoryName.toLowerCase());
+      if (cat) openCategoryModal(cat.id);
+    }
+  });
+  document.getElementById('inputSearchCategoryIngredients')?.addEventListener('input', () => {
+    if (state.selectedCategoryName) renderCategoryIngredientsTable(state.selectedCategoryName);
+  });
+  document.getElementById('selectFilterCategoryStock')?.addEventListener('change', () => {
+    if (state.selectedCategoryName) renderCategoryIngredientsTable(state.selectedCategoryName);
+  });
+  document.getElementById('inputSearchAllIngredients')?.addEventListener('input', () => renderAllIngredientsTable());
+  document.getElementById('selectFilterAllStock')?.addEventListener('change', () => renderAllIngredientsTable());
+  document.getElementById('btnOpenNewIngredientGlobalModal')?.addEventListener('click', () => openIngredientModal());
+  document.getElementById('inputSearchCategories')?.addEventListener('input', () => renderCategoriesTable());
 
   // Modal de Categorias (com seletor visual Insumo vs Receita)
   function openCategoryModal(categoryId = null, defaultType = null) {
@@ -2494,6 +2950,8 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => location.reload(), 800);
     }
   });
+
+  document.getElementById('btnGoToIngredients')?.addEventListener('click', () => switchTab('categories'));
 
   // =========================================================================
   // INICIALIZAÇÃO INICIAL
