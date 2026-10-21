@@ -421,6 +421,23 @@ const INITIAL_PRODUCTS = [
     status: 'active',
     description: 'Bolo completo aro 20cm com 2kg, decorado com frosting de cream cheese e frutas.',
     imageIcon: '🎂'
+  },
+  {
+    id: 'prod_6',
+    name: 'Combo Degustação Especial (Brownie + Brigadeiros)',
+    category: 'Combos & Kits',
+    type: 'combo',
+    isCombo: true,
+    comboItems: [
+      { productId: 'prod_1', quantity: 2 }, // 2 fatias brownie
+      { productId: 'prod_3', quantity: 1 }  // 1 caixa de brigadeiro
+    ],
+    additionalPackaging: 1.50,
+    pricingMethod: 'margin',
+    salePrice: 44.00,
+    status: 'active',
+    description: 'Combo promocional imperdível com 2 fatias de Brownie Trufado e 1 Caixa com 4 Brigadeiros Gourmet Belga.',
+    imageIcon: '🎁'
   }
 ];
 
@@ -854,14 +871,23 @@ class AppDataStore {
     const ingMap = new Map(ingredients.map(i => [i.id, i]));
     const modifiedIngs = [];
 
-    sale.items.forEach(saleItem => {
-      const prod = products.find(p => p.id === saleItem.productId);
-      if (!prod || !prod.recipeId) return;
+    const deductForProduct = (productId, qtyMultiplier) => {
+      const prod = products.find(p => p.id === productId);
+      if (!prod) return;
 
+      // Se for combo, baixa estoque de cada produto componente
+      if (prod.type === 'combo' || prod.isCombo) {
+        (prod.comboItems || []).forEach(ci => {
+          deductForProduct(ci.productId, (parseFloat(ci.quantity) || 1) * qtyMultiplier);
+        });
+        return;
+      }
+
+      if (!prod.recipeId) return;
       const recipe = recipes.find(r => r.id === prod.recipeId);
       if (!recipe || !recipe.items) return;
 
-      const portionsSold = (prod.portionCount || 1) * saleItem.quantity;
+      const portionsSold = (prod.portionCount || 1) * qtyMultiplier;
       const recipeYield = recipe.yieldUnits || 1;
       const proportion = portionsSold / recipeYield;
 
@@ -876,9 +902,13 @@ class AppDataStore {
           if (recItem.unit === 'l' && ing.packageUnit === 'ml') qtyUsedInIngUnit *= 1000;
 
           ing.currentStock = Math.max(0, (ing.currentStock || 0) - qtyUsedInIngUnit);
-          modifiedIngs.push(ing);
+          if (!modifiedIngs.includes(ing)) modifiedIngs.push(ing);
         }
       });
+    };
+
+    (sale.items || []).forEach(saleItem => {
+      deductForProduct(saleItem.productId, saleItem.quantity || 1);
     });
 
     this.saveIngredients(Array.from(ingMap.values()));

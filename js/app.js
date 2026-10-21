@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
       breakdown: null,
       topProducts: null
     },
-    tempSaleCart: [] // Itens no carrinho do modal de venda
+    tempSaleCart: [], // Itens no carrinho do modal de venda
+    tempComboItems: [] // Itens de produtos do combo no modal de produto
   };
 
   // =========================================================================
@@ -2404,30 +2405,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     grid.innerHTML = filtered.map(prod => {
-      const recipe = recipes.find(r => r.id === prod.recipeId);
-      let unitCost = 0;
-
-      if (recipe) {
-        const recipeCost = GastronomyCalc.calcRecipeCost(recipe, ingredients);
-        unitCost = (recipeCost.costPerUnit * (prod.portionCount || 1)) + (prod.additionalPackaging || 0);
-      }
-
+      const isCombo = prod.type === 'combo' || prod.isCombo;
+      const unitCost = GastronomyCalc.calcProductCost(prod, products, recipes, ingredients);
       const grossProfit = prod.salePrice - unitCost;
       const marginPercent = prod.salePrice > 0 ? (grossProfit / prod.salePrice) * 100 : 0;
 
+      // Se for combo, calcula valor avulso somado e economia do cliente
+      let comboSummaryHtml = '';
+      if (isCombo && Array.isArray(prod.comboItems) && prod.comboItems.length > 0) {
+        const itemNames = prod.comboItems.map(ci => {
+          const subP = products.find(p => p.id === ci.productId);
+          return subP ? `<strong>${ci.quantity}x</strong> ${subP.name}` : `<strong>${ci.quantity}x</strong> Item`;
+        });
+
+        const totalSeparatePrice = prod.comboItems.reduce((acc, ci) => {
+          const subP = products.find(p => p.id === ci.productId);
+          return acc + ((subP ? subP.salePrice : 0) * (ci.quantity || 1));
+        }, 0);
+
+        const savings = totalSeparatePrice > prod.salePrice ? totalSeparatePrice - prod.salePrice : 0;
+        const savingsPercent = totalSeparatePrice > 0 ? (savings / totalSeparatePrice) * 100 : 0;
+
+        comboSummaryHtml = `
+          <div class="combo-composition-summary">
+            <div style="font-weight: 700; color: var(--accent-gold); margin-bottom: 3px; font-size: 0.76rem;">
+              🍱 Itens Inclusos no Combo (${prod.comboItems.length}):
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.78rem;">
+              ${itemNames.join(' <span style="color: var(--accent-gold);">+</span> ')}
+            </div>
+            ${savings > 0 ? `
+              <div style="margin-top: 4px; font-size: 0.73rem; color: var(--accent-emerald); font-weight: 600;">
+                🏷️ Economia p/ cliente: ${GastronomyCalc.formatCurrency(savings)} (${savingsPercent.toFixed(0)}% OFF sobre avulso)
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
       return `
-        <div class="product-card" id="prod-card-${prod.id}">
+        <div class="product-card ${isCombo ? 'product-card-combo' : ''}" id="prod-card-${prod.id}">
           <div class="product-card-top">
-            <div class="product-icon">${prod.imageIcon || '🍰'}</div>
-            <span class="badge badge-category">${prod.category}</span>
+            <div class="product-icon">${prod.imageIcon || (isCombo ? '🎁' : '🍰')}</div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+              ${isCombo ? '<span class="badge badge-combo">🍱 COMBO</span>' : ''}
+              <span class="badge badge-category">${prod.category}</span>
+            </div>
           </div>
 
           <h4 class="product-card-title">${prod.name}</h4>
-          <p class="product-card-desc">${prod.description || 'Produto artesanal de alta qualidade.'}</p>
+          <p class="product-card-desc">${prod.description || (isCombo ? 'Combo especial composto por múltiplos produtos.' : 'Produto artesanal de alta qualidade.')}</p>
+
+          ${comboSummaryHtml}
 
           <div class="product-pricing-breakdown">
             <div class="pricing-metric">
-              <span>Custo Unit. (CMV)</span>
+              <span>Custo Total (CMV)</span>
               <strong>${GastronomyCalc.formatCurrency(unitCost)}</strong>
             </div>
             <div class="pricing-metric profit">
@@ -2438,7 +2471,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <div class="product-card-footer">
             <div>
-              <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Preço de Venda</span>
+              <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Preço do ${isCombo ? 'Combo' : 'Produto'}</span>
               <div class="product-final-price">${GastronomyCalc.formatCurrency(prod.salePrice)}</div>
             </div>
             <div style="display: flex; gap: 6px;">
@@ -2468,7 +2501,7 @@ document.addEventListener('DOMContentLoaded', () => {
     grid.querySelectorAll('.btn-delete-product').forEach(b => {
       b.addEventListener('click', () => {
         const id = b.getAttribute('data-id');
-        if (confirm('Tem certeza que deseja remover este produto do catálogo?')) {
+        if (confirm('Tem certeza que deseja remover este item do catálogo?')) {
           window.db.deleteProduct(id);
           showToast('Produto excluído do catálogo!', 'warning');
           renderProductsGrid();
@@ -2490,38 +2523,286 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('inputSearchProducts')?.addEventListener('input', () => renderProductsGrid());
   document.getElementById('selectFilterProductCategory')?.addEventListener('change', () => renderProductsGrid());
-  document.getElementById('btnOpenNewProductModal')?.addEventListener('click', () => openProductModal());
+  document.getElementById('btnOpenNewProductModal')?.addEventListener('click', () => openProductModal(null, 'single'));
+  document.getElementById('btnOpenNewComboModal')?.addEventListener('click', () => openProductModal(null, 'combo'));
 
-  // Modal Produto
-  function openProductModal(productId = null) {
+  // =========================================================================
+  // GESTÃO DO MODAL DE PRODUTO & COMBO (MÚLTIPLOS PRODUTOS)
+  // =========================================================================
+  function setProductModalType(type) {
+    const inputType = document.getElementById('prodType');
+    const btnSingle = document.getElementById('btnTypeSingle');
+    const btnCombo = document.getElementById('btnTypeCombo');
+    const secSingle = document.getElementById('sectionSingleProductFields');
+    const secCombo = document.getElementById('sectionComboFields');
+    const selRecipe = document.getElementById('prodRecipeId');
+    const lblPrice = document.getElementById('lblProdSalePrice');
+    const lblPack = document.getElementById('lblProdPackaging');
+
+    inputType.value = type;
+
+    if (type === 'combo') {
+      btnSingle?.classList.remove('active');
+      btnCombo?.classList.add('active');
+      secSingle.style.display = 'none';
+      secCombo.style.display = 'block';
+      selRecipe.required = false;
+
+      if (lblPrice) lblPrice.textContent = 'Preço de Venda do Combo (R$) *';
+      if (lblPack) lblPack.textContent = 'Embalagem / Sacola do Combo (R$)';
+      updateComboMetrics();
+    } else {
+      btnSingle?.classList.add('active');
+      btnCombo?.classList.remove('active');
+      secSingle.style.display = 'block';
+      secCombo.style.display = 'none';
+      selRecipe.required = true;
+
+      if (lblPrice) lblPrice.textContent = 'Preço de Venda (R$) *';
+      if (lblPack) lblPack.textContent = 'Embalagem Individual (R$)';
+      const savingsBadge = document.getElementById('comboSavingsBadge');
+      if (savingsBadge) savingsBadge.style.display = 'none';
+    }
+  }
+
+  function renderComboItemsTable() {
+    const tbody = document.getElementById('comboItemsTbody');
+    const countLabel = document.getElementById('comboItemCountLabel');
+    const allProducts = window.db.getProducts();
+    const recipes = window.db.getRecipes();
+    const ingredients = window.db.getIngredients();
+
+    if (!tbody) return;
+
+    if (countLabel) {
+      countLabel.textContent = `${state.tempComboItems.length} produto(s) no combo`;
+    }
+
+    if (state.tempComboItems.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">
+            Nenhum produto adicionado ao combo ainda. Selecione acima para compor seu combo.
+          </td>
+        </tr>
+      `;
+      updateComboMetrics();
+      return;
+    }
+
+    tbody.innerHTML = state.tempComboItems.map((ci, idx) => {
+      const prod = allProducts.find(p => p.id === ci.productId);
+      const prodName = prod ? prod.name : 'Produto';
+      const prodSalePrice = prod ? prod.salePrice : 0;
+      const prodCost = prod ? GastronomyCalc.calcProductCost(prod, allProducts, recipes, ingredients) : 0;
+      const subtotalPrice = prodSalePrice * (ci.quantity || 1);
+
+      return `
+        <tr>
+          <td><strong style="color: #fff;">${prodName}</strong></td>
+          <td>
+            <input type="number" class="form-control combo-qty-input" data-idx="${idx}" min="1" value="${ci.quantity || 1}" style="width: 70px; padding: 3px 6px;">
+          </td>
+          <td>${GastronomyCalc.formatCurrency(prodSalePrice)}</td>
+          <td style="color: var(--accent-rose);">${GastronomyCalc.formatCurrency(prodCost)}</td>
+          <td><strong style="color: var(--accent-gold); font-family: var(--font-mono);">${GastronomyCalc.formatCurrency(subtotalPrice)}</strong></td>
+          <td style="text-align: right;">
+            <button type="button" class="btn btn-sm btn-danger-outline combo-remove-item" data-idx="${idx}" title="Remover do Combo">&times;</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('.combo-qty-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const idx = parseInt(inp.getAttribute('data-idx'));
+        const val = parseInt(inp.value) || 1;
+        state.tempComboItems[idx].quantity = Math.max(1, val);
+        renderComboItemsTable();
+      });
+    });
+
+    tbody.querySelectorAll('.combo-remove-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-idx'));
+        state.tempComboItems.splice(idx, 1);
+        renderComboItemsTable();
+      });
+    });
+
+    updateComboMetrics();
+  }
+
+  function updateComboMetrics() {
+    const allProducts = window.db.getProducts();
+    const recipes = window.db.getRecipes();
+    const ingredients = window.db.getIngredients();
+
+    let totalOriginalPrice = 0;
+    let totalCost = 0;
+
+    state.tempComboItems.forEach(ci => {
+      const prod = allProducts.find(p => p.id === ci.productId);
+      if (prod) {
+        const qty = ci.quantity || 1;
+        totalOriginalPrice += (prod.salePrice || 0) * qty;
+        totalCost += GastronomyCalc.calcProductCost(prod, allProducts, recipes, ingredients) * qty;
+      }
+    });
+
+    const packaging = parseFloat(document.getElementById('prodPackaging')?.value) || 0;
+    const finalCostWithPackaging = totalCost + packaging;
+
+    const elOrig = document.getElementById('comboTotalOriginalPrice');
+    const elCost = document.getElementById('comboTotalCost');
+    if (elOrig) elOrig.textContent = GastronomyCalc.formatCurrency(totalOriginalPrice);
+    if (elCost) elCost.textContent = GastronomyCalc.formatCurrency(finalCostWithPackaging);
+
+    // Atualiza feedback de economia no campo de preço
+    const inputPrice = document.getElementById('prodSalePrice');
+    const savingsBadge = document.getElementById('comboSavingsBadge');
+    if (inputPrice && savingsBadge && document.getElementById('prodType')?.value === 'combo') {
+      const currentComboPrice = parseFloat(inputPrice.value) || 0;
+      if (currentComboPrice > 0 && totalOriginalPrice > currentComboPrice) {
+        const diff = totalOriginalPrice - currentComboPrice;
+        const pct = (diff / totalOriginalPrice) * 100;
+        savingsBadge.textContent = `🎉 Desconto para o cliente: ${GastronomyCalc.formatCurrency(diff)} (${pct.toFixed(0)}% OFF sobre o valor avulso de ${GastronomyCalc.formatCurrency(totalOriginalPrice)})`;
+        savingsBadge.style.display = 'block';
+      } else {
+        savingsBadge.style.display = 'none';
+      }
+    }
+  }
+
+  // Ouvintes de botões rápidos para precificação do combo
+  document.getElementById('btnApplyComboOriginalPrice')?.addEventListener('click', () => {
+    const allProducts = window.db.getProducts();
+    const totalOriginalPrice = state.tempComboItems.reduce((acc, ci) => {
+      const p = allProducts.find(pr => pr.id === ci.productId);
+      return acc + ((p ? p.salePrice : 0) * (ci.quantity || 1));
+    }, 0);
+    const inputPrice = document.getElementById('prodSalePrice');
+    if (inputPrice) {
+      inputPrice.value = totalOriginalPrice.toFixed(2);
+      updateComboMetrics();
+    }
+  });
+
+  document.getElementById('btnApplyComboDiscount10')?.addEventListener('click', () => {
+    const allProducts = window.db.getProducts();
+    const totalOriginalPrice = state.tempComboItems.reduce((acc, ci) => {
+      const p = allProducts.find(pr => pr.id === ci.productId);
+      return acc + ((p ? p.salePrice : 0) * (ci.quantity || 1));
+    }, 0);
+    const inputPrice = document.getElementById('prodSalePrice');
+    if (inputPrice) {
+      inputPrice.value = (totalOriginalPrice * 0.9).toFixed(2);
+      updateComboMetrics();
+    }
+  });
+
+  document.getElementById('btnApplyComboDiscount15')?.addEventListener('click', () => {
+    const allProducts = window.db.getProducts();
+    const totalOriginalPrice = state.tempComboItems.reduce((acc, ci) => {
+      const p = allProducts.find(pr => pr.id === ci.productId);
+      return acc + ((p ? p.salePrice : 0) * (ci.quantity || 1));
+    }, 0);
+    const inputPrice = document.getElementById('prodSalePrice');
+    if (inputPrice) {
+      inputPrice.value = (totalOriginalPrice * 0.85).toFixed(2);
+      updateComboMetrics();
+    }
+  });
+
+  document.getElementById('btnTypeSingle')?.addEventListener('click', () => setProductModalType('single'));
+  document.getElementById('btnTypeCombo')?.addEventListener('click', () => setProductModalType('combo'));
+  document.getElementById('prodSalePrice')?.addEventListener('input', () => updateComboMetrics());
+  document.getElementById('prodPackaging')?.addEventListener('input', () => updateComboMetrics());
+
+  // Adicionar produto ao combo
+  document.getElementById('btnAddProductToCombo')?.addEventListener('click', () => {
+    const sel = document.getElementById('comboSelectProduct');
+    const inpQty = document.getElementById('comboProductQty');
+    const prodId = sel?.value;
+    const qty = parseInt(inpQty?.value) || 1;
+
+    if (!prodId) {
+      alert('Selecione um produto comercial para adicionar ao combo!');
+      return;
+    }
+
+    const existing = state.tempComboItems.find(ci => ci.productId === prodId);
+    if (existing) {
+      existing.quantity += qty;
+    } else {
+      state.tempComboItems.push({ productId: prodId, quantity: qty });
+    }
+
+    renderComboItemsTable();
+    inpQty.value = 1;
+  });
+
+  // Modal Produto / Combo
+  function openProductModal(productId = null, forceType = null) {
     const form = document.getElementById('formProduct');
     const title = document.getElementById('modalProductTitle');
     const selRecipe = document.getElementById('prodRecipeId');
+    const selComboProd = document.getElementById('comboSelectProduct');
     const recipes = window.db.getRecipes();
+    const allProducts = window.db.getProducts();
 
     form.reset();
+    state.tempComboItems = [];
+
+    // Preenche select de receitas
     selRecipe.innerHTML = recipes.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
 
+    // Preenche select de produtos componentes do combo (excluindo o combo em edição)
+    const eligibleProducts = productId ? allProducts.filter(p => p.id !== productId) : allProducts;
+    selComboProd.innerHTML = eligibleProducts.map(p => `
+      <option value="${p.id}">${p.name} - ${GastronomyCalc.formatCurrency(p.salePrice)}</option>
+    `).join('');
+
     if (productId) {
-      const prod = window.db.getProducts().find(p => p.id === productId);
+      const prod = allProducts.find(p => p.id === productId);
       if (prod) {
-        title.textContent = 'Editar Produto Comercial';
+        const isCombo = prod.type === 'combo' || prod.isCombo;
+        title.textContent = isCombo ? 'Editar Combo Promocional' : 'Editar Produto Comercial';
         document.getElementById('prodId').value = prod.id;
         document.getElementById('prodName').value = prod.name;
         document.getElementById('prodCategory').value = prod.category;
-        document.getElementById('prodRecipeId').value = prod.recipeId;
-        document.getElementById('prodPortionCount').value = prod.portionCount || 1;
         document.getElementById('prodSalePrice').value = prod.salePrice;
         document.getElementById('prodPackaging').value = prod.additionalPackaging || 0;
-        document.getElementById('prodIcon').value = prod.imageIcon || '🧁';
+        document.getElementById('prodIcon').value = prod.imageIcon || (isCombo ? '🎁' : '🧁');
         document.getElementById('prodDescription').value = prod.description || '';
+
+        if (isCombo) {
+          setProductModalType('combo');
+          state.tempComboItems = (prod.comboItems || []).map(ci => ({ ...ci }));
+          renderComboItemsTable();
+        } else {
+          setProductModalType('single');
+          document.getElementById('prodRecipeId').value = prod.recipeId || (recipes[0]?.id || '');
+          document.getElementById('prodPortionCount').value = prod.portionCount || 1;
+        }
       }
     } else {
-      title.textContent = 'Novo Produto Comercial';
       document.getElementById('prodId').value = '';
       document.getElementById('prodPortionCount').value = '1';
       document.getElementById('prodPackaging').value = '0.80';
-      document.getElementById('prodIcon').value = '🧁';
+
+      if (forceType === 'combo') {
+        title.textContent = 'Novo Combo / Kit Promocional';
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodCategory').value = 'Combos & Kits';
+        document.getElementById('prodIcon').value = '🎁';
+        setProductModalType('combo');
+        renderComboItemsTable();
+      } else {
+        title.textContent = 'Novo Produto Comercial';
+        document.getElementById('prodIcon').value = '🧁';
+        setProductModalType('single');
+      }
     }
 
     openModal('modalProduct');
@@ -2530,30 +2811,42 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('formProduct')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = document.getElementById('prodId').value;
+    const type = document.getElementById('prodType').value;
+    const isCombo = type === 'combo';
+
+    if (isCombo && state.tempComboItems.length === 0) {
+      alert('Adicione pelo menos 1 produto para compor o combo!');
+      return;
+    }
+
     const prodData = {
+      type,
+      isCombo,
       name: document.getElementById('prodName').value.trim(),
       category: document.getElementById('prodCategory').value.trim(),
-      recipeId: document.getElementById('prodRecipeId').value,
-      portionCount: parseFloat(document.getElementById('prodPortionCount').value) || 1,
+      recipeId: isCombo ? '' : document.getElementById('prodRecipeId').value,
+      portionCount: isCombo ? 0 : (parseFloat(document.getElementById('prodPortionCount').value) || 1),
+      comboItems: isCombo ? state.tempComboItems.map(ci => ({ productId: ci.productId, quantity: ci.quantity })) : [],
       salePrice: parseFloat(document.getElementById('prodSalePrice').value) || 0,
       additionalPackaging: parseFloat(document.getElementById('prodPackaging').value) || 0,
-      imageIcon: document.getElementById('prodIcon').value.trim() || '🍰',
+      imageIcon: document.getElementById('prodIcon').value.trim() || (isCombo ? '🎁' : '🍰'),
       description: document.getElementById('prodDescription').value.trim(),
       status: 'active'
     };
 
     if (id) {
       window.db.updateProduct(id, prodData);
-      showToast('Produto atualizado com sucesso!');
+      showToast(isCombo ? 'Combo atualizado com sucesso!' : 'Produto atualizado com sucesso!');
     } else {
       window.db.addProduct(prodData);
-      showToast('Produto comercial cadastrado!');
+      showToast(isCombo ? 'Combo cadastrado com sucesso no catálogo!' : 'Produto comercial cadastrado!');
     }
 
     closeModal('modalProduct');
     renderProductsGrid();
     renderDashboard();
   });
+
 
   // =========================================================================
   // 6. MÓDULO DE VENDAS & CONTROLE FINANCEIRO (PDV)
@@ -2587,6 +2880,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const itemsSummary = (s.items || []).map(it => `${it.quantity}x ${it.productName}`).join(', ');
+      const discount = parseFloat(s.discountValue) || 0;
 
       return `
         <tr>
@@ -2599,7 +2893,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ${itemsSummary}
           </td>
           <td><span class="badge badge-category">${s.paymentMethod}</span></td>
-          <td><strong style="color: #fff; font-family: var(--font-mono);">${GastronomyCalc.formatCurrency(s.totalGross)}</strong></td>
+          <td>
+            <strong style="color: #fff; font-family: var(--font-mono);">${GastronomyCalc.formatCurrency(s.totalGross)}</strong>
+            ${discount > 0 ? `
+              <div>
+                <span class="sale-discount-tag" title="Subtotal de produtos: ${GastronomyCalc.formatCurrency(s.subtotalGross || (s.totalGross + discount))}">
+                  -${GastronomyCalc.formatCurrency(discount)} desc
+                </span>
+              </div>
+            ` : ''}
+          </td>
           <td><span style="color: var(--accent-rose); font-family: var(--font-mono);">${GastronomyCalc.formatCurrency(s.totalCost)}</span></td>
           <td style="font-size: 0.8rem; color: var(--text-dim);">${GastronomyCalc.formatCurrency((s.taxesValue || 0) + (s.cardFeeValue || 0))}</td>
           <td><strong style="color: var(--accent-emerald); font-family: var(--font-mono); font-size: 0.95rem;">${GastronomyCalc.formatCurrency(s.netProfit)}</strong></td>
@@ -2633,12 +2936,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function openNewSaleModal(initialProductId = null) {
     const products = window.db.getProducts();
     const selectProd = document.getElementById('saleSelectProduct');
+    const discountInput = document.getElementById('saleDiscountValue');
     state.tempSaleCart = [];
 
-    // Preenche select de produtos
-    selectProd.innerHTML = products.map(p => `
-      <option value="${p.id}">${p.name} - ${GastronomyCalc.formatCurrency(p.salePrice)}</option>
-    `).join('');
+    if (discountInput) {
+      discountInput.value = '0.00';
+    }
+
+    // Preenche select de produtos (incluindo combos com indicador)
+    selectProd.innerHTML = products.map(p => {
+      const isCombo = p.type === 'combo' || p.isCombo;
+      const labelPrefix = isCombo ? '🍱 [Combo] ' : '';
+      return `<option value="${p.id}">${labelPrefix}${p.name} - ${GastronomyCalc.formatCurrency(p.salePrice)}</option>`;
+    }).join('');
 
     // Seta data atual no formato datetime-local
     const now = new Date();
@@ -2663,14 +2973,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const prod = products.find(p => p.id === productId);
     if (!prod) return;
 
-    let unitCost = 0;
-    if (prod.recipeId) {
-      const rec = recipes.find(r => r.id === prod.recipeId);
-      if (rec) {
-        const recCost = GastronomyCalc.calcRecipeCost(rec, ingredients);
-        unitCost = (recCost.costPerUnit * (prod.portionCount || 1)) + (prod.additionalPackaging || 0);
-      }
-    }
+    // Calcula custo CMV real (inclusive para combos de múltiplos produtos)
+    const unitCost = GastronomyCalc.calcProductCost(prod, products, recipes, ingredients);
 
     const existing = state.tempSaleCart.find(i => i.productId === productId);
     if (existing) {
@@ -2681,7 +2985,8 @@ document.addEventListener('DOMContentLoaded', () => {
         productName: prod.name,
         unitPrice: prod.salePrice,
         unitCost,
-        quantity
+        quantity,
+        isCombo: !!(prod.type === 'combo' || prod.isCombo)
       });
     }
 
@@ -2693,6 +2998,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const paymentMethod = document.getElementById('salePaymentMethod')?.value || 'Pix';
     const settings = window.db.getSettings();
 
+    const elSubtotal = document.getElementById('saleSummarySubtotal');
+    const elGross = document.getElementById('saleSummaryGross');
+    const elCost = document.getElementById('saleSummaryCost');
+    const elFees = document.getElementById('saleSummaryFees');
+    const elNet = document.getElementById('saleSummaryNet');
+    const elDiscountBox = document.getElementById('saleDiscountSummaryBox');
+    const elDiscountVal = document.getElementById('saleSummaryDiscount');
+    const elDiscountFeedback = document.getElementById('saleDiscountFeedback');
+
     if (state.tempSaleCart.length === 0) {
       tbody.innerHTML = `
         <tr>
@@ -2701,25 +3015,31 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
         </tr>
       `;
-      document.getElementById('saleSummaryGross').textContent = 'R$ 0,00';
-      document.getElementById('saleSummaryCost').textContent = 'R$ 0,00';
-      document.getElementById('saleSummaryFees').textContent = 'R$ 0,00';
-      document.getElementById('saleSummaryNet').textContent = 'R$ 0,00';
+      if (elSubtotal) elSubtotal.textContent = 'R$ 0,00';
+      if (elGross) elGross.textContent = 'R$ 0,00';
+      if (elCost) elCost.textContent = 'R$ 0,00';
+      if (elFees) elFees.textContent = 'R$ 0,00';
+      if (elNet) elNet.textContent = 'R$ 0,00';
+      if (elDiscountBox) elDiscountBox.style.display = 'none';
+      if (elDiscountFeedback) elDiscountFeedback.textContent = 'Nenhum desconto aplicado no pedido.';
       return;
     }
 
-    let totalGross = 0;
+    let subtotalGross = 0;
     let totalCost = 0;
 
     tbody.innerHTML = state.tempSaleCart.map((it, idx) => {
       const subtotalPrice = it.unitPrice * it.quantity;
       const subtotalCost = it.unitCost * it.quantity;
-      totalGross += subtotalPrice;
+      subtotalGross += subtotalPrice;
       totalCost += subtotalCost;
 
       return `
         <tr>
-          <td><strong style="color: #fff;">${it.productName}</strong></td>
+          <td>
+            <strong style="color: #fff;">${it.productName}</strong>
+            ${it.isCombo ? '<span class="badge badge-combo" style="margin-left: 6px; font-size: 0.65rem;">COMBO</span>' : ''}
+          </td>
           <td>${GastronomyCalc.formatCurrency(it.unitPrice)}</td>
           <td>
             <input type="number" class="form-control cart-qty-input" data-idx="${idx}" min="1" value="${it.quantity}" style="width: 70px; padding: 4px 8px;">
@@ -2733,7 +3053,13 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
-    // Deduções de taxas conforme forma de pagamento
+    // Aplica o desconto informado pelo usuário
+    const discountInput = document.getElementById('saleDiscountValue');
+    const rawDiscount = parseFloat(discountInput?.value) || 0;
+    const discountValue = Math.min(subtotalGross, Math.max(0, rawDiscount));
+    const totalGross = Math.max(0, subtotalGross - discountValue);
+
+    // Deduções de taxas conforme forma de pagamento sobre o valor final cobrado
     const taxPercent = settings.defaultTaxRate || 4.5;
     let cardFeePercent = 0;
     if (paymentMethod === 'Cartão de Crédito') cardFeePercent = 3.2;
@@ -2744,10 +3070,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalFees = taxesValue + cardFeeValue;
     const netProfit = totalGross - totalCost - totalFees;
 
-    document.getElementById('saleSummaryGross').textContent = GastronomyCalc.formatCurrency(totalGross);
-    document.getElementById('saleSummaryCost').textContent = GastronomyCalc.formatCurrency(totalCost);
-    document.getElementById('saleSummaryFees').textContent = GastronomyCalc.formatCurrency(totalFees);
-    document.getElementById('saleSummaryNet').textContent = GastronomyCalc.formatCurrency(netProfit);
+    if (elSubtotal) elSubtotal.textContent = GastronomyCalc.formatCurrency(subtotalGross);
+    if (elGross) elGross.textContent = GastronomyCalc.formatCurrency(totalGross);
+    if (elCost) elCost.textContent = GastronomyCalc.formatCurrency(totalCost);
+    if (elFees) elFees.textContent = GastronomyCalc.formatCurrency(totalFees);
+    if (elNet) elNet.textContent = GastronomyCalc.formatCurrency(netProfit);
+
+    // Feedback de desconto
+    if (discountValue > 0) {
+      if (elDiscountBox) elDiscountBox.style.display = 'block';
+      if (elDiscountVal) elDiscountVal.textContent = `- ${GastronomyCalc.formatCurrency(discountValue)}`;
+      if (elDiscountFeedback) {
+        const pct = subtotalGross > 0 ? (discountValue / subtotalGross) * 100 : 0;
+        elDiscountFeedback.innerHTML = `
+          <span style="color: var(--accent-gold); font-weight: 600;">Desconto de ${GastronomyCalc.formatCurrency(discountValue)} (${pct.toFixed(1)}%)</span> concedido!
+          <div style="font-size: 0.76rem; color: #fff;">Valor final a cobrar: <strong>${GastronomyCalc.formatCurrency(totalGross)}</strong></div>
+        `;
+      }
+    } else {
+      if (elDiscountBox) elDiscountBox.style.display = 'none';
+      if (elDiscountFeedback) {
+        elDiscountFeedback.textContent = 'Nenhum desconto aplicado no pedido.';
+      }
+    }
 
     tbody.querySelectorAll('.cart-qty-input').forEach(inp => {
       inp.addEventListener('change', () => {
@@ -2774,6 +3119,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('salePaymentMethod')?.addEventListener('change', () => renderSaleCart());
+  document.getElementById('saleDiscountValue')?.addEventListener('input', () => renderSaleCart());
+  document.getElementById('saleDiscountValue')?.addEventListener('change', () => renderSaleCart());
 
   document.getElementById('formSale')?.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2787,13 +3134,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const saleDate = document.getElementById('saleDate').value || new Date().toISOString();
     const settings = window.db.getSettings();
 
-    let totalGross = 0;
+    let subtotalGross = 0;
     let totalCost = 0;
 
     const saleItems = state.tempSaleCart.map(it => {
       const subPrice = it.unitPrice * it.quantity;
       const subCost = it.unitCost * it.quantity;
-      totalGross += subPrice;
+      subtotalGross += subPrice;
       totalCost += subCost;
 
       return {
@@ -2802,6 +3149,11 @@ document.addEventListener('DOMContentLoaded', () => {
         subtotalCost: subCost
       };
     });
+
+    // Desconto
+    const rawDiscount = parseFloat(document.getElementById('saleDiscountValue')?.value) || 0;
+    const discountValue = Math.min(subtotalGross, Math.max(0, rawDiscount));
+    const totalGross = Math.max(0, subtotalGross - discountValue);
 
     const taxPercent = settings.defaultTaxRate || 4.5;
     let cardFeePercent = 0;
@@ -2818,6 +3170,8 @@ document.addEventListener('DOMContentLoaded', () => {
       clientName,
       paymentMethod,
       items: saleItems,
+      subtotalGross,
+      discountValue,
       totalGross,
       totalCost,
       taxesValue,
@@ -2826,12 +3180,14 @@ document.addEventListener('DOMContentLoaded', () => {
       marginPercent
     });
 
-    showToast(`Venda registrada com sucesso! Lucro gerado: ${GastronomyCalc.formatCurrency(netProfit)}!`);
+    const discountMsg = discountValue > 0 ? ` (com desconto de ${GastronomyCalc.formatCurrency(discountValue)})` : '';
+    showToast(`Venda registrada com sucesso${discountMsg}! Lucro gerado: ${GastronomyCalc.formatCurrency(netProfit)}!`);
     closeModal('modalSale');
     renderSalesTable();
     renderDashboard();
     renderIngredientsTable();
   });
+
 
   // =========================================================================
   // 7. MÓDULO DE CONFIGURAÇÕES & BACKUP

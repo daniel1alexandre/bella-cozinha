@@ -641,7 +641,10 @@
               <option value="">Todas as Categorias</option>
             </select>
             <button type="button" class="btn btn-primary" id="btnOpenNewProductModal">
-              <span>+</span> Novo Produto Comercial
+              <span>+</span> Novo Produto Individual
+            </button>
+            <button type="button" class="btn btn-gold" id="btnOpenNewComboModal">
+              <span>🍱</span> Novo Combo / Kit
             </button>
           </div>
         </div>
@@ -1249,49 +1252,131 @@ service cloud.firestore {
        MODAL 3: CADASTRO / EDIÇÃO DE PRODUTO DO CATÁLOGO
        ======================================================= -->
   <div class="modal-overlay" id="modalProduct">
-    <div class="modal-container">
+    <div class="modal-container modal-lg">
       <div class="modal-header">
         <h3 id="modalProductTitle">Novo Produto Comercial</h3>
         <button type="button" class="modal-close-btn" data-close="modalProduct">&times;</button>
       </div>
       <form id="formProduct">
         <input type="hidden" id="prodId">
+        <input type="hidden" id="prodType" value="single">
+
         <div class="modal-body">
+          <!-- Seletor de Tipo de Produto: Individual vs Combo -->
+          <div class="product-type-pills" style="display: flex; gap: 8px; margin-bottom: 18px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+            <button type="button" class="btn btn-sm btn-product-type active" id="btnTypeSingle" style="flex: 1; padding: 8px 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span>🧁</span> Produto Individual (1 Receita)
+            </button>
+            <button type="button" class="btn btn-sm btn-product-type" id="btnTypeCombo" style="flex: 1; padding: 8px 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span>🍱</span> Combo / Kit Promocional (Vários Produtos)
+            </button>
+          </div>
+
           <div class="form-grid-2">
             <div class="form-group">
-              <label for="prodName">Nome Comercial *</label>
+              <label for="prodName" id="lblProdName">Nome Comercial *</label>
               <input type="text" id="prodName" class="form-control" required placeholder="Ex: Brownie Trufado Fatia">
             </div>
 
             <div class="form-group">
               <label for="prodCategory">Categoria *</label>
-              <input type="text" id="prodCategory" class="form-control" required placeholder="Ex: Doces, Bolos, Salgados">
+              <input type="text" id="prodCategory" class="form-control" required placeholder="Ex: Doces, Bolos, Combos & Kits">
             </div>
           </div>
 
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label for="prodRecipeId">Ficha Técnica Vinculada *</label>
-              <select id="prodRecipeId" class="form-control" required>
-                <!-- Preenchido via JS -->
-              </select>
+          <!-- SEÇÃO 1: PRODUTO INDIVIDUAL (Ficha Técnica) -->
+          <div id="sectionSingleProductFields">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="prodRecipeId">Ficha Técnica Vinculada *</label>
+                <select id="prodRecipeId" class="form-control" required>
+                  <!-- Preenchido via JS -->
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="prodPortionCount">Porções da Receita por Unidade</label>
+                <input type="number" id="prodPortionCount" class="form-control" step="0.1" value="1">
+                <span class="form-helper">Ex: 1 se for 1 fatia, ou o total da receita se for o bolo inteiro</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEÇÃO 2: COMBO / KIT (Múltiplos Produtos) -->
+          <div id="sectionComboFields" style="display: none; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
+              <h4 style="margin: 0; font-size: 0.95rem; color: var(--accent-gold); display: flex; align-items: center; gap: 6px;">
+                <span>🍱</span> Composição do Combo (Selecione quantos produtos desejar)
+              </h4>
+              <span style="font-size: 0.78rem; color: var(--text-dim);" id="comboItemCountLabel">0 produtos adicionados</span>
             </div>
 
-            <div class="form-group">
-              <label for="prodPortionCount">Porções da Receita por Unidade</label>
-              <input type="number" id="prodPortionCount" class="form-control" step="0.1" value="1" required>
-              <span class="form-helper">Ex: 1 se for 1 fatia, ou o total da receita se for o bolo inteiro</span>
+            <!-- Seletor de produto para adicionar ao combo -->
+            <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap;">
+              <div style="flex-grow: 1; min-width: 220px;">
+                <label for="comboSelectProduct" style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px;">Escolha o Produto para Incluir no Combo</label>
+                <select id="comboSelectProduct" class="form-control">
+                  <!-- Injetado via JS -->
+                </select>
+              </div>
+              <div style="width: 90px;">
+                <label for="comboProductQty" style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px;">Qtd.</label>
+                <input type="number" id="comboProductQty" class="form-control" min="1" value="1">
+              </div>
+              <button type="button" class="btn btn-secondary" id="btnAddProductToCombo" style="padding: 10px 14px;">
+                <span>+</span> Incluir no Combo
+              </button>
+            </div>
+
+            <!-- Tabela de Produtos no Combo -->
+            <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+              <table class="custom-table" style="font-size: 0.85rem;">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Qtd</th>
+                    <th>Preço Avulso</th>
+                    <th>Custo CMV</th>
+                    <th>Subtotal Avulso</th>
+                    <th style="text-align: right;">Remover</th>
+                  </tr>
+                </thead>
+                <tbody id="comboItemsTbody">
+                  <!-- Injetado via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Resumo e Sugestão de Preço do Combo -->
+            <div id="comboMetricsBar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 1px dashed var(--border-subtle); align-items: center;">
+              <div>
+                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Preço Avulso Total</span>
+                <div id="comboTotalOriginalPrice" style="font-family: var(--font-heading); font-weight: 700; color: #fff;">R$ 0,00</div>
+              </div>
+              <div>
+                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Custo Total (CMV)</span>
+                <div id="comboTotalCost" style="font-family: var(--font-heading); font-weight: 700; color: var(--accent-rose);">R$ 0,00</div>
+              </div>
+              <div>
+                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Preço Promocional Sugerido</span>
+                <div style="display: flex; gap: 4px; margin-top: 2px;">
+                  <button type="button" class="btn btn-sm btn-outline" id="btnApplyComboOriginalPrice" style="padding: 3px 8px; font-size: 0.72rem;" title="Preço igual à soma avulsa">Usar Avulso</button>
+                  <button type="button" class="btn btn-sm btn-outline" id="btnApplyComboDiscount10" style="padding: 3px 8px; font-size: 0.72rem;" title="Aplica 10% de desconto promocional">10% OFF</button>
+                  <button type="button" class="btn btn-sm btn-outline" id="btnApplyComboDiscount15" style="padding: 3px 8px; font-size: 0.72rem;" title="Aplica 15% de desconto promocional">15% OFF</button>
+                </div>
+              </div>
             </div>
           </div>
 
           <div class="form-grid-3">
             <div class="form-group">
-              <label for="prodSalePrice">Preço de Venda (R$) *</label>
+              <label for="prodSalePrice" id="lblProdSalePrice">Preço de Venda do Produto/Combo (R$) *</label>
               <input type="number" id="prodSalePrice" class="form-control" step="0.50" required placeholder="Ex: 15.00">
+              <span id="comboSavingsBadge" class="form-helper" style="color: var(--accent-gold); font-weight: 600; display: none;"></span>
             </div>
 
             <div class="form-group">
-              <label for="prodPackaging">Embalagem Individual (R$)</label>
+              <label for="prodPackaging" id="lblProdPackaging">Embalagem Individual / Caixa (R$)</label>
               <input type="number" id="prodPackaging" class="form-control" step="0.10" value="0.80">
             </div>
 
@@ -1303,12 +1388,12 @@ service cloud.firestore {
 
           <div class="form-group">
             <label for="prodDescription">Descrição Comercial (para o cliente)</label>
-            <textarea id="prodDescription" class="form-control" rows="2" placeholder="Descreva os sabores marcantes do produto..."></textarea>
+            <textarea id="prodDescription" class="form-control" rows="2" placeholder="Descreva os produtos e sabores marcantes do item ou combo..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" data-close="modalProduct">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar Produto</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitProduct">Salvar Produto</button>
         </div>
       </form>
     </div>
@@ -1351,7 +1436,7 @@ service cloud.firestore {
           <div style="background-color: rgba(0, 0, 0, 0.25); padding: 16px; border-radius: var(--radius-md); margin: 16px 0;">
             <div style="display: flex; gap: 12px; align-items: flex-end; margin-bottom: 12px; flex-wrap: wrap;">
               <div style="flex-grow: 1; min-width: 200px;">
-                <label for="saleSelectProduct" style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px;">Selecione o Produto</label>
+                <label for="saleSelectProduct" style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px;">Selecione o Produto ou Combo</label>
                 <select id="saleSelectProduct" class="form-control">
                   <!-- Preenchido via JS -->
                 </select>
@@ -1367,7 +1452,7 @@ service cloud.firestore {
               <table class="custom-table">
                 <thead>
                   <tr>
-                    <th>Item</th>
+                    <th>Item / Combo</th>
                     <th>Preço Un.</th>
                     <th>Qtd.</th>
                     <th>Subtotal</th>
@@ -1382,11 +1467,36 @@ service cloud.firestore {
             </div>
           </div>
 
+          <!-- Campo de Desconto na Venda -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px dashed var(--border-subtle); padding: 12px 16px; border-radius: var(--radius-md); margin-top: 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 220px;">
+              <label for="saleDiscountValue" style="display: flex; align-items: center; gap: 6px; font-size: 0.84rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 4px;">
+                <span>🏷️</span> Conceder Desconto na Venda (R$)
+              </label>
+              <div style="position: relative;">
+                <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-weight: 600; font-size: 0.9rem;">R$</span>
+                <input type="number" id="saleDiscountValue" class="form-control" step="0.50" min="0" value="0.00" style="padding-left: 38px; font-weight: 700; font-size: 1.05rem; max-width: 180px;" placeholder="0,00">
+              </div>
+              <span class="form-helper" style="font-size: 0.74rem;">Informe um valor caso queira aplicar desconto nesta venda antes de finalizar.</span>
+            </div>
+            <div id="saleDiscountFeedback" style="flex: 1; min-width: 200px; font-size: 0.82rem; color: var(--text-muted); text-align: right;">
+              <!-- Detalhes do desconto -->
+            </div>
+          </div>
+
           <!-- Resumo Financeiro da Venda em Tempo Real -->
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: rgba(255, 255, 255, 0.04); padding: 14px 18px; border-radius: var(--radius-md);">
             <div>
-              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Total Bruto</span>
-              <div id="saleSummaryGross" style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: #fff;">R$ 0,00</div>
+              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Subtotal Itens</span>
+              <div id="saleSummarySubtotal" style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: #cbd5e1;">R$ 0,00</div>
+            </div>
+            <div id="saleDiscountSummaryBox" style="display: none;">
+              <span style="font-size: 0.72rem; color: var(--accent-gold); text-transform: uppercase;">Desconto</span>
+              <div id="saleSummaryDiscount" style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: var(--accent-gold);">- R$ 0,00</div>
+            </div>
+            <div>
+              <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Total a Receber</span>
+              <div id="saleSummaryGross" style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 800; color: #fff;">R$ 0,00</div>
             </div>
             <div>
               <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">CMV (Custo)</span>

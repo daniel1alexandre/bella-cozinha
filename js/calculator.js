@@ -215,6 +215,37 @@ const GastronomyCalc = {
     };
   },
 
+  /**
+   * Calcula o custo unitário (CMV) de um produto comercial ou combo de múltiplos produtos
+   */
+  calcProductCost(product, productsList = [], recipesList = [], ingredientsList = []) {
+    if (!product) return 0;
+
+    // Se for combo composto por múltiplos produtos
+    if (product.type === 'combo' || product.isCombo) {
+      let comboCost = parseFloat(product.additionalPackaging) || 0;
+      (product.comboItems || []).forEach(item => {
+        const subProd = productsList.find(p => p.id === item.productId);
+        if (subProd && subProd.id !== product.id) {
+          const subCost = this.calcProductCost(subProd, productsList, recipesList, ingredientsList);
+          comboCost += subCost * (parseFloat(item.quantity) || 1);
+        }
+      });
+      return comboCost;
+    }
+
+    // Se for produto simples vinculado a ficha técnica
+    if (product.recipeId) {
+      const recipe = recipesList.find(r => r.id === product.recipeId);
+      if (recipe) {
+        const recipeCost = this.calcRecipeCost(recipe, ingredientsList);
+        return (recipeCost.costPerUnit * (parseFloat(product.portionCount) || 1)) + (parseFloat(product.additionalPackaging) || 0);
+      }
+    }
+
+    return parseFloat(product.additionalPackaging) || 0;
+  },
+
   // Formatação de Moeda Brasileira
   formatCurrency(value) {
     const val = parseFloat(value) || 0;
