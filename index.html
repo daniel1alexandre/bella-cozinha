@@ -95,8 +95,13 @@
             <p id="pageSubtitle">Visão geral dos lucros, custos de mercadoria e margens operacionais</p>
           </div>
         </div>
-        <div class="topbar-actions" id="topbarActionArea">
-          <!-- Ações dinâmicas renderizadas por cada aba -->
+        <div class="topbar-actions" style="display: flex; align-items: center; gap: 12px;">
+          <!-- Indicador de Status da Nuvem Firebase -->
+          <button type="button" class="cloud-status-badge status-disconnected" id="cloudStatusBadge" title="Status da sincronização com o banco de dados Firebase">
+            <span class="status-dot"></span>
+            <span id="cloudStatusText">Firebase</span>
+          </button>
+          <div id="topbarActionArea"></div>
         </div>
       </header>
 
@@ -758,6 +763,162 @@
           </form>
         </div>
 
+        <!-- ==========================================
+             BANCO DE DADOS NA NUVEM (FIREBASE FIRESTORE)
+             ========================================== -->
+        <div class="panel-card firebase-panel" style="max-width: 800px; margin-bottom: 24px;">
+          <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.4rem;">🔥</span>
+              <div>
+                <h3 class="panel-title" style="margin: 0;">Banco de Dados na Nuvem (Google Firebase Firestore)</h3>
+                <span style="font-size: 0.78rem; color: var(--text-dim);">Sincronização em tempo real e geração do banco de dados na nuvem</span>
+              </div>
+            </div>
+            <div id="firebaseConnectionBadge" class="firebase-status-badge status-disconnected">
+              <span class="status-dot"></span>
+              <span id="firebaseStatusLabel">Não Configurado</span>
+            </div>
+          </div>
+
+          <!-- Alerta de status detalhado -->
+          <div id="firebaseStatusAlert" class="firebase-status-alert" style="display: none;">
+            <span id="firebaseStatusMessage"></span>
+            <small id="firebaseLastSyncTime" style="display: block; opacity: 0.85; margin-top: 4px;"></small>
+          </div>
+
+          <!-- Opção 1: Colar Configuração Rápida do Console Firebase -->
+          <div class="firebase-quick-box" style="margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="firebaseQuickSnippet" style="font-size: 0.84rem; font-weight: 600; color: var(--text-main);">
+                ⚡ Colar Snippet de Configuração do Firebase
+              </label>
+              <button type="button" class="btn btn-sm btn-outline" id="btnToggleManualFirebaseFields" style="padding: 4px 10px; font-size: 0.75rem;">
+                Mostrar Campos Individuais
+              </button>
+            </div>
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">
+              Copie o código <code>const firebaseConfig = { ... }</code> gerado no Firebase Console e cole abaixo. Todos os campos são preenchidos automaticamente!
+            </p>
+            <div style="display: flex; gap: 8px;">
+              <textarea id="firebaseQuickSnippet" class="form-control" rows="3" placeholder='const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "seu-projeto.firebaseapp.com",
+  projectId: "seu-projeto",
+  storageBucket: "seu-projeto.appspot.com",
+  messagingSenderId: "...",
+  appId: "..."
+};' style="font-family: var(--font-mono); font-size: 0.78rem;"></textarea>
+            </div>
+            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+              <button type="button" class="btn btn-sm btn-gold" id="btnApplySnippet">
+                <span>🪄</span> Aplicar e Conectar Automaticamente
+              </button>
+            </div>
+          </div>
+
+          <!-- Opção 2: Campos Individuais Manuais -->
+          <form id="formFirebaseConfig" style="margin-top: 16px;">
+            <div id="firebaseManualFields" style="display: none; background: rgba(0,0,0,0.2); padding: 14px; border-radius: var(--radius-md); margin-bottom: 16px;">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="fbApiKey">API Key *</label>
+                  <input type="password" id="fbApiKey" class="form-control" placeholder="AIzaSy..." autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label for="fbProjectId">Project ID *</label>
+                  <input type="text" id="fbProjectId" class="form-control" placeholder="ex: bella-cozinha-app">
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="fbAuthDomain">Auth Domain</label>
+                  <input type="text" id="fbAuthDomain" class="form-control" placeholder="ex: bella-cozinha-app.firebaseapp.com">
+                </div>
+                <div class="form-group">
+                  <label for="fbStorageBucket">Storage Bucket</label>
+                  <input type="text" id="fbStorageBucket" class="form-control" placeholder="ex: bella-cozinha-app.appspot.com">
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="fbAppId">App ID</label>
+                  <input type="text" id="fbAppId" class="form-control" placeholder="ex: 1:123456789:web:abcdef...">
+                </div>
+                <div class="form-group">
+                  <label for="fbMessagingSenderId">Messaging Sender ID</label>
+                  <input type="text" id="fbMessagingSenderId" class="form-control" placeholder="ex: 123456789012">
+                </div>
+              </div>
+              <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <button type="submit" class="btn btn-primary" id="btnSaveFirebaseConfig">
+                  <span>💾</span> Salvar Credenciais & Testar Conexão
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <!-- Ações de Sincronização em Nuvem -->
+          <div class="firebase-actions-box" style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border-subtle);">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary" id="btnSyncLocalToCloud">
+                  <span>☁️</span> Enviar Todos os Dados para o Firebase (Gerar Banco na Nuvem)
+                </button>
+
+                <button type="button" class="btn btn-secondary" id="btnSyncCloudToLocal">
+                  <span>📥</span> Baixar Dados do Firebase para este Dispositivo
+                </button>
+
+                <button type="button" class="btn btn-danger-outline" id="btnDisconnectFirebase" style="display: none;">
+                  <span>🔌</span> Desconectar Firebase
+                </button>
+              </div>
+              <span style="font-size: 0.78rem; color: var(--text-dim);">
+                💡 Com o Firebase conectado, qualquer novo insumo, ficha técnica, produto ou venda salva no app é gravada <b>automaticamente</b> no seu banco Firestore.
+              </span>
+            </div>
+          </div>
+
+          <!-- Guia Rápido: Como Criar o Firebase Grátis -->
+          <details class="firebase-tutorial-details" style="margin-top: 20px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 18px;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 0.88rem; color: var(--accent-gold); display: flex; align-items: center; gap: 8px;">
+              <span>📖</span> Guia Rápido: Como criar seu banco Firebase gratuitamente em 3 minutos (Clique para abrir)
+            </summary>
+            <div style="margin-top: 14px; font-size: 0.84rem; line-height: 1.6; color: var(--text-muted);">
+              <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px;">
+                <li>
+                  Acesse o <a href="https://console.firebase.google.com" target="_blank" rel="noopener" style="color: var(--accent-gold); text-decoration: underline;">Console do Google Firebase</a> com sua conta Google e clique em <b>"Adicionar projeto"</b> (dê o nome de <i>Bella Cozinha</i>).
+                </li>
+                <li>
+                  No menu lateral esquerdo, clique em <b>"Criação" &gt; "Cloud Firestore"</b> e clique em <b>"Criar banco de dados"</b>.
+                </li>
+                <li>
+                  Escolha o local do servidor (ex: <code>southamerica-east1</code> em São Paulo ou padrão) e selecione <b>"Iniciar no modo de teste"</b> (ou adicione as Regras de Segurança abaixo).
+                </li>
+                <li>
+                  Vá na <b>Engrenagem (Configurações do Projeto) ⚙️ &gt; Geral</b>, role até <i>"Seus aplicativos"</i>, clique no ícone da Web <b>(&lt;/&gt;)</b>, dê um apelido e copie o código <code>firebaseConfig</code>.
+                </li>
+                <li>
+                  Cole o código no campo de <b>"Snippet de Configuração do Firebase"</b> acima e clique em <b>"Aplicar e Conectar Automaticamente"</b>!
+                </li>
+              </ol>
+
+              <div style="margin-top: 16px; background: rgba(0,0,0,0.4); border-radius: var(--radius-sm); padding: 12px;">
+                <span style="font-size: 0.78rem; font-weight: 600; color: #fff; display: block; margin-bottom: 6px;">🔒 Regras de Segurança recomendadas para o Cloud Firestore (Aba 'Regras' no Firebase Console):</span>
+                <pre style="font-family: var(--font-mono); font-size: 0.75rem; color: #a5f3fc; overflow-x: auto; margin: 0; padding: 6px 0;">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true; // Acesso liberado para uso do aplicativo Bella Cozinha
+    }
+  }
+}</pre>
+              </div>
+            </div>
+          </details>
+        </div>
+
         <div class="panel-card" style="max-width: 800px;">
           <div class="panel-header">
             <h3 class="panel-title"><span>💾</span> Backup & Gestão de Dados</h3>
@@ -1286,7 +1447,12 @@
   <!-- ÁREA DE IMPRESSÃO OCULTA PARA FICHA TÉCNICA -->
   <div id="printArea" class="print-area" style="display: none;"></div>
 
+  <!-- Firebase SDK v10 (Compat Web) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <!-- Scripts da Aplicação -->
+  <script src="js/firebase-service.js"></script>
   <script src="js/calculator.js"></script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>

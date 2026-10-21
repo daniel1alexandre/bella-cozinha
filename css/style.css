@@ -1691,3 +1691,127 @@ textarea.form-control:focus {
   text-align: center;
 }
 
+/* ====================================================================
+   FIREBASE FIRESTORE & CLOUD SYNC STYLES
+   ==================================================================== */
+
+.cloud-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  outline: none;
+}
+
+.cloud-status-badge:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.firebase-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Estados: Conectado, Desconectado, Sincronizando, Erro */
+.status-connected .status-dot {
+  background-color: var(--accent-emerald);
+  box-shadow: 0 0 10px var(--accent-emerald);
+}
+
+.status-connected {
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.status-disconnected .status-dot {
+  background-color: var(--text-dim);
+}
+
+.status-disconnected {
+  border-color: var(--border-subtle);
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.status-syncing .status-dot {
+  background-color: var(--accent-gold);
+  animation: pulseSync 1s infinite alternate;
+}
+
+.status-syncing {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--accent-gold);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.status-error .status-dot {
+  background-color: var(--accent-rose);
+  box-shadow: 0 0 8px var(--accent-rose);
+}
+
+.status-error {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--accent-rose);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+@keyframes pulseSync {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+.firebase-panel {
+  position: relative;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  background: linear-gradient(180deg, rgba(21, 28, 40, 0.95), rgba(14, 20, 31, 0.98)) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.firebase-status-alert {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+}
+
+.firebase-quick-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.firebase-tutorial-details summary::-webkit-details-marker {
+  display: none;
+}
+
+

@@ -2954,8 +2954,255 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnGoToIngredients')?.addEventListener('click', () => switchTab('categories'));
 
   // =========================================================================
+  // 8. GERENCIAMENTO E SINCRONIZAÇÃO COM GOOGLE FIREBASE FIRESTORE
+  // =========================================================================
+  const cloudBadge = document.getElementById('cloudStatusBadge');
+  const cloudText = document.getElementById('cloudStatusText');
+  const fbConnectionBadge = document.getElementById('firebaseConnectionBadge');
+  const fbStatusLabel = document.getElementById('firebaseStatusLabel');
+  const fbStatusAlert = document.getElementById('firebaseStatusAlert');
+  const fbStatusMsg = document.getElementById('firebaseStatusMessage');
+  const fbLastSync = document.getElementById('firebaseLastSyncTime');
+  const btnDisconnectFb = document.getElementById('btnDisconnectFirebase');
+
+  function updateFirebaseUI(statusData) {
+    const { status, message, lastSync } = statusData;
+
+    // Atualiza classes do badge do Topbar
+    if (cloudBadge) {
+      cloudBadge.className = `cloud-status-badge status-${status}`;
+      if (status === 'connected') {
+        cloudText.textContent = 'Firebase Conectado';
+      } else if (status === 'syncing') {
+        cloudText.textContent = 'Sincronizando...';
+      } else if (status === 'error') {
+        cloudText.textContent = 'Erro Firebase';
+      } else {
+        cloudText.textContent = 'Conectar Firebase';
+      }
+    }
+
+    // Atualiza badge do Painel Firebase
+    if (fbConnectionBadge) {
+      fbConnectionBadge.className = `firebase-status-badge status-${status}`;
+      if (status === 'connected') {
+        fbStatusLabel.textContent = 'Conectado';
+      } else if (status === 'syncing') {
+        fbStatusLabel.textContent = 'Sincronizando...';
+      } else if (status === 'error') {
+        fbStatusLabel.textContent = 'Erro de Conexão';
+      } else {
+        fbStatusLabel.textContent = 'Não Configurado';
+      }
+    }
+
+    // Atualiza mensagem detalhada
+    if (fbStatusAlert) {
+      fbStatusAlert.style.display = 'block';
+      fbStatusAlert.className = `firebase-status-alert status-${status}`;
+      if (fbStatusMsg) fbStatusMsg.textContent = message || '';
+      if (fbLastSync) {
+        if (lastSync) {
+          const dt = new Date(lastSync);
+          fbLastSync.textContent = `Última sincronização na nuvem: ${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        } else {
+          fbLastSync.textContent = 'Nenhuma sincronização realizada ainda.';
+        }
+      }
+    }
+
+    if (btnDisconnectFb) {
+      btnDisconnectFb.style.display = (status === 'connected' || status === 'error') ? 'inline-flex' : 'none';
+    }
+  }
+
+  function fillFirebaseFormInputs() {
+    if (!window.FirebaseSyncService) return;
+    const cfg = window.FirebaseSyncService.getConfig();
+    if (cfg) {
+      if (document.getElementById('fbApiKey')) document.getElementById('fbApiKey').value = cfg.apiKey || '';
+      if (document.getElementById('fbProjectId')) document.getElementById('fbProjectId').value = cfg.projectId || '';
+      if (document.getElementById('fbAuthDomain')) document.getElementById('fbAuthDomain').value = cfg.authDomain || '';
+      if (document.getElementById('fbStorageBucket')) document.getElementById('fbStorageBucket').value = cfg.storageBucket || '';
+      if (document.getElementById('fbAppId')) document.getElementById('fbAppId').value = cfg.appId || '';
+      if (document.getElementById('fbMessagingSenderId')) document.getElementById('fbMessagingSenderId').value = cfg.messagingSenderId || '';
+    }
+  }
+
+  // Registra listener de status
+  if (window.FirebaseSyncService) {
+    window.FirebaseSyncService.onStatusChange(updateFirebaseUI);
+    fillFirebaseFormInputs();
+  }
+
+  // Clique no status do Topbar leva direto para as configurações do Firebase
+  cloudBadge?.addEventListener('click', () => {
+    switchTab('settings');
+    const panel = document.querySelector('.firebase-panel');
+    if (panel) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      panel.style.boxShadow = '0 0 25px rgba(245, 158, 11, 0.5)';
+      setTimeout(() => {
+        panel.style.boxShadow = '';
+      }, 1500);
+    }
+  });
+
+  // Alternar visualização dos campos individuais
+  const btnToggleManual = document.getElementById('btnToggleManualFirebaseFields');
+  const manualFields = document.getElementById('firebaseManualFields');
+  btnToggleManual?.addEventListener('click', () => {
+    if (!manualFields) return;
+    const isHidden = manualFields.style.display === 'none' || !manualFields.style.display;
+    manualFields.style.display = isHidden ? 'block' : 'none';
+    btnToggleManual.textContent = isHidden ? 'Ocultar Campos Individuais' : 'Mostrar Campos Individuais';
+  });
+
+  // Aplicar Snippet rápido
+  document.getElementById('btnApplySnippet')?.addEventListener('click', async () => {
+    const raw = document.getElementById('firebaseQuickSnippet')?.value;
+    if (!raw || !raw.trim()) {
+      showToast('Por favor, cole o código ou JSON do Firebase Console no campo.');
+      return;
+    }
+
+    const config = FirebaseSyncService.parseConfigInput(raw);
+    if (!config || !config.apiKey || !config.projectId) {
+      alert('Não foi possível identificar a apiKey ou projectId no texto colado. Verifique se copiou todo o bloco do firebaseConfig.');
+      return;
+    }
+
+    fillFirebaseFormInputs();
+    showToast('Conectando ao Firebase Firestore...');
+
+    try {
+      const res = await window.FirebaseSyncService.saveConfig(config);
+      if (res.success) {
+        showToast('🔥 Conectado ao Firebase Firestore com sucesso!');
+        fillFirebaseFormInputs();
+      } else {
+        alert('Erro ao conectar ao Firebase: ' + (res.error || res.reason || 'Verifique as regras do Firestore ou o Project ID.'));
+      }
+    } catch (e) {
+      alert('Falha na conexão: ' + e.message);
+    }
+  });
+
+  // Salvar formulário manual
+  document.getElementById('formFirebaseConfig')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const config = {
+      apiKey: document.getElementById('fbApiKey').value.trim(),
+      projectId: document.getElementById('fbProjectId').value.trim(),
+      authDomain: document.getElementById('fbAuthDomain').value.trim(),
+      storageBucket: document.getElementById('fbStorageBucket').value.trim(),
+      appId: document.getElementById('fbAppId').value.trim(),
+      messagingSenderId: document.getElementById('fbMessagingSenderId').value.trim()
+    };
+
+    if (!config.apiKey || !config.projectId) {
+      alert('Os campos API Key e Project ID são obrigatórios.');
+      return;
+    }
+
+    showToast('Salvando credenciais e testando conexão...');
+    try {
+      const res = await window.FirebaseSyncService.saveConfig(config);
+      if (res.success) {
+        showToast('🔥 Conectado ao Firebase Firestore com sucesso!');
+      } else {
+        alert('Erro ao conectar ao Firebase: ' + (res.error || 'Verifique as credenciais e as regras do Firestore.'));
+      }
+    } catch (err) {
+      alert('Falha ao conectar: ' + err.message);
+    }
+  });
+
+  // Sincronizar Tudo Local -> Nuvem (Criar / Atualizar Banco de Dados no Firebase)
+  document.getElementById('btnSyncLocalToCloud')?.addEventListener('click', async () => {
+    if (!window.FirebaseSyncService.isReady()) {
+      const initRes = await window.FirebaseSyncService.init();
+      if (!initRes.success) {
+        alert('Por favor, configure e conecte suas credenciais do Firebase antes de sincronizar.');
+        if (manualFields) manualFields.style.display = 'block';
+        return;
+      }
+    }
+
+    const btn = document.getElementById('btnSyncLocalToCloud');
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Enviando banco de dados para a nuvem...';
+
+    try {
+      const result = await window.FirebaseSyncService.syncLocalToCloud(window.db);
+      showToast(`🔥 Banco de dados gerado no Firebase! (${result.counts.ingredients} insumos, ${result.counts.recipes} receitas, ${result.counts.products} produtos, ${result.counts.sales} vendas gravadas na nuvem!)`);
+    } catch (err) {
+      alert('Erro ao gravar dados no Firebase: ' + err.message + '\n\nDica: Certifique-se de que o Cloud Firestore está criado no console e com as regras configuradas para allow read, write: if true;');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+  });
+
+  // Baixar Dados da Nuvem -> Local
+  document.getElementById('btnSyncCloudToLocal')?.addEventListener('click', async () => {
+    if (!window.FirebaseSyncService.isReady()) {
+      const initRes = await window.FirebaseSyncService.init();
+      if (!initRes.success) {
+        alert('Por favor, configure e conecte suas credenciais do Firebase antes de sincronizar.');
+        return;
+      }
+    }
+
+    if (!confirm('Deseja baixar os dados do Firebase Firestore para este dispositivo? As informações locais serão sincronizadas com o banco na nuvem.')) {
+      return;
+    }
+
+    const btn = document.getElementById('btnSyncCloudToLocal');
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Baixando dados da nuvem...';
+
+    try {
+      const result = await window.FirebaseSyncService.syncCloudToLocal(window.db);
+      showToast(`Dados baixados com sucesso do Firebase! (${result.counts.recipes} receitas, ${result.counts.ingredients} insumos atualizados)`);
+      applyGlobalSettingsUI();
+      renderDashboard();
+      renderIngredientsTable();
+      renderRecipes();
+      renderProductsGrid();
+      renderSalesTable();
+      loadSettingsForm();
+    } catch (err) {
+      alert('Erro ao baixar dados do Firebase: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+  });
+
+  // Desconectar Firebase
+  document.getElementById('btnDisconnectFirebase')?.addEventListener('click', () => {
+    if (confirm('Deseja realmente desconectar o Firebase? Seus dados salvos neste computador continuarão intactos.')) {
+      window.FirebaseSyncService.disconnect();
+      if (document.getElementById('fbApiKey')) document.getElementById('fbApiKey').value = '';
+      if (document.getElementById('fbProjectId')) document.getElementById('fbProjectId').value = '';
+      if (document.getElementById('fbAuthDomain')) document.getElementById('fbAuthDomain').value = '';
+      if (document.getElementById('fbStorageBucket')) document.getElementById('fbStorageBucket').value = '';
+      if (document.getElementById('fbAppId')) document.getElementById('fbAppId').value = '';
+      if (document.getElementById('fbMessagingSenderId')) document.getElementById('fbMessagingSenderId').value = '';
+      if (document.getElementById('firebaseQuickSnippet')) document.getElementById('firebaseQuickSnippet').value = '';
+      showToast('Firebase desconectado deste aplicativo.');
+    }
+  });
+
+  // =========================================================================
   // INICIALIZAÇÃO INICIAL
   // =========================================================================
   applyGlobalSettingsUI();
   switchTab('dashboard');
+  if (window.FirebaseSyncService) {
+    window.FirebaseSyncService.init();
+  }
 });

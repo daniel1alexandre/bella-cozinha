@@ -577,6 +577,18 @@ class AppDataStore {
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(items));
   }
 
+  _syncDoc(collection, id, data) {
+    if (window.FirebaseSyncService && typeof window.FirebaseSyncService.saveDoc === 'function') {
+      window.FirebaseSyncService.saveDoc(collection, id, data).catch(() => {});
+    }
+  }
+
+  _deleteDoc(collection, id) {
+    if (window.FirebaseSyncService && typeof window.FirebaseSyncService.deleteDoc === 'function') {
+      window.FirebaseSyncService.deleteDoc(collection, id).catch(() => {});
+    }
+  }
+
   addCategory(item) {
     const list = this.getCategories();
     const name = (typeof item === 'string' ? item : item.name || '').trim();
@@ -593,6 +605,7 @@ class AppDataStore {
     };
     list.push(newCat);
     this.saveCategories(list);
+    this._syncDoc('categories', newCat.id, newCat);
     return newCat;
   }
 
@@ -614,18 +627,25 @@ class AppDataStore {
       const oldName = list[index].name;
       list[index] = { ...list[index], ...updatedItem, id };
       this.saveCategories(list);
+      this._syncDoc('categories', id, list[index]);
 
       // Se renomeou a categoria, atualiza também insumos e receitas associados
       if (updatedItem.name && updatedItem.name !== oldName) {
         const ingredients = this.getIngredients();
         ingredients.forEach(i => {
-          if (i.category === oldName) i.category = updatedItem.name;
+          if (i.category === oldName) {
+            i.category = updatedItem.name;
+            this._syncDoc('ingredients', i.id, i);
+          }
         });
         this.saveIngredients(ingredients);
 
         const recipes = this.getRecipes();
         recipes.forEach(r => {
-          if (r.category === oldName) r.category = updatedItem.name;
+          if (r.category === oldName) {
+            r.category = updatedItem.name;
+            this._syncDoc('recipes', r.id, r);
+          }
         });
         this.saveRecipes(recipes);
       }
@@ -638,6 +658,7 @@ class AppDataStore {
   deleteCategory(id) {
     const list = this.getCategories().filter(c => c.id !== id);
     this.saveCategories(list);
+    this._deleteDoc('categories', id);
     return true;
   }
 
@@ -653,6 +674,7 @@ class AppDataStore {
 
   saveSettings(settings) {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    this._syncDoc('settings', 'general', settings);
   }
 
   // Ingredients
@@ -678,6 +700,7 @@ class AppDataStore {
     };
     list.unshift(newItem);
     this.saveIngredients(list);
+    this._syncDoc('ingredients', newItem.id, newItem);
     return newItem;
   }
 
@@ -688,6 +711,7 @@ class AppDataStore {
     if (index !== -1) {
       list[index] = { ...list[index], ...updatedItem, id };
       this.saveIngredients(list);
+      this._syncDoc('ingredients', id, list[index]);
       return list[index];
     }
     return null;
@@ -696,6 +720,7 @@ class AppDataStore {
   deleteIngredient(id) {
     const list = this.getIngredients().filter(i => i.id !== id);
     this.saveIngredients(list);
+    this._deleteDoc('ingredients', id);
     return true;
   }
 
@@ -722,6 +747,7 @@ class AppDataStore {
     };
     list.unshift(newItem);
     this.saveRecipes(list);
+    this._syncDoc('recipes', newItem.id, newItem);
     return newItem;
   }
 
@@ -732,6 +758,7 @@ class AppDataStore {
     if (index !== -1) {
       list[index] = { ...list[index], ...updatedItem, id };
       this.saveRecipes(list);
+      this._syncDoc('recipes', id, list[index]);
       return list[index];
     }
     return null;
@@ -740,6 +767,7 @@ class AppDataStore {
   deleteRecipe(id) {
     const list = this.getRecipes().filter(r => r.id !== id);
     this.saveRecipes(list);
+    this._deleteDoc('recipes', id);
     return true;
   }
 
@@ -765,6 +793,7 @@ class AppDataStore {
     };
     list.unshift(newItem);
     this.saveProducts(list);
+    this._syncDoc('products', newItem.id, newItem);
     return newItem;
   }
 
@@ -774,6 +803,7 @@ class AppDataStore {
     if (index !== -1) {
       list[index] = { ...list[index], ...updatedItem, id };
       this.saveProducts(list);
+      this._syncDoc('products', id, list[index]);
       return list[index];
     }
     return null;
@@ -782,6 +812,7 @@ class AppDataStore {
   deleteProduct(id) {
     const list = this.getProducts().filter(i => i.id !== id);
     this.saveProducts(list);
+    this._deleteDoc('products', id);
     return true;
   }
 
@@ -808,6 +839,7 @@ class AppDataStore {
     };
     list.unshift(newSale);
     this.saveSales(list);
+    this._syncDoc('sales', newSale.id, newSale);
 
     // Opcional: baixa automática no estoque dos insumos vinculados
     this.deductStockForSale(newSale);
@@ -820,6 +852,7 @@ class AppDataStore {
     const products = this.getProducts();
     const ingredients = this.getIngredients();
     const ingMap = new Map(ingredients.map(i => [i.id, i]));
+    const modifiedIngs = [];
 
     sale.items.forEach(saleItem => {
       const prod = products.find(p => p.id === saleItem.productId);
@@ -843,16 +876,19 @@ class AppDataStore {
           if (recItem.unit === 'l' && ing.packageUnit === 'ml') qtyUsedInIngUnit *= 1000;
 
           ing.currentStock = Math.max(0, (ing.currentStock || 0) - qtyUsedInIngUnit);
+          modifiedIngs.push(ing);
         }
       });
     });
 
     this.saveIngredients(Array.from(ingMap.values()));
+    modifiedIngs.forEach(ing => this._syncDoc('ingredients', ing.id, ing));
   }
 
   deleteSale(id) {
     const list = this.getSales().filter(s => s.id !== id);
     this.saveSales(list);
+    this._deleteDoc('sales', id);
     return true;
   }
 
