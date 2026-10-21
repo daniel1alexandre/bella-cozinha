@@ -2517,6 +2517,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function populateProductCategories(products) {
     const select = document.getElementById('selectFilterProductCategory');
     if (!select) return;
+    const currentVal = select.value;
     const categories = Array.from(new Set(products.map(p => p.category)))
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
