@@ -537,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (stockVal === 'normal') matchStock = !isLow;
 
       return matchSearch && matchCat && matchStock;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
 
     if (filtered.length === 0) {
       tbody.innerHTML = `
@@ -636,8 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const select = document.getElementById('selectFilterIngredientCategory');
     const datalist = document.getElementById('listCategories');
     const storedCats = (window.db.getIngredientCategories() || []).map(c => c.name);
-    const ingCats = (ingredients || []).map(i => i.category);
-    const categories = Array.from(new Set([...storedCats, ...ingCats])).filter(Boolean).sort();
+    const categories = Array.from(new Set([...storedCats, ...ingCats]))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
 
     if (select) {
       const currentVal = select.value;
@@ -873,7 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.categoryView === 'insumo') matchType = cat.type === 'insumo';
       else if (state.categoryView === 'receita') matchType = cat.type === 'receita';
       return matchSearch && matchType;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
 
     if (filtered.length === 0) {
       let emptyMsg = 'Nenhuma categoria encontrada.';
@@ -1062,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (stockVal === 'low') matchStock = isLow;
       if (stockVal === 'normal') matchStock = !isLow;
       return matchSearch && matchStock;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
 
     if (!tbody) return;
 
@@ -1221,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (stockVal === 'low') matchStock = isLow;
       if (stockVal === 'normal') matchStock = !isLow;
       return matchSearch && matchStock;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
 
     if (!tbody) return;
 
@@ -1641,7 +1642,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const datalist = document.getElementById('listRecipeCategories');
     const storedCats = (window.db.getRecipeCategories() || []).map(c => c.name);
     const recCats = (recipes || []).map(r => r.category);
-    const categories = Array.from(new Set([...storedCats, ...recCats])).filter(Boolean).sort();
+    const categories = Array.from(new Set([...storedCats, ...recCats]))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
 
     if (select) {
       const currentVal = select.value;
@@ -1678,7 +1681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const availableCategories = Array.from(new Set([
       ...(window.db.getIngredientCategories() || []).map(c => c.name),
       ...ingredients.map(i => i.category)
-    ])).filter(Boolean).sort();
+    ])).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
 
     const catOptions = availableCategories.map(cat => `
       <option value="${cat}" ${cat === initialCategory ? 'selected' : ''}>🌾 ${cat}</option>
@@ -2514,8 +2517,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function populateProductCategories(products) {
     const select = document.getElementById('selectFilterProductCategory');
     if (!select) return;
-    const currentVal = select.value;
-    const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean).sort();
+    const categories = Array.from(new Set(products.map(p => p.category)))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
 
     select.innerHTML = '<option value="">Todas as Categorias</option>' +
       categories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');

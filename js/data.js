@@ -22,27 +22,27 @@ const DEFAULT_SETTINGS = {
   currency: 'BRL'
 };
 
-// Categorias padrão iniciais divididas entre Insumos e Receitas
+// Categorias padrão iniciais divididas entre Insumos e Receitas (em ordem alfabética)
 const INITIAL_CATEGORIES = [
   // --- CATEGORIAS DE INSUMOS ---
-  { id: 'cat_1', name: 'Farinhas & Secos', type: 'insumo', icon: '🌾' },
   { id: 'cat_2', name: 'Açúcares & Adoçantes', type: 'insumo', icon: '🍬' },
-  { id: 'cat_3', name: 'Laticínios', type: 'insumo', icon: '🥛' },
-  { id: 'cat_4', name: 'Ovos & Frescos', type: 'insumo', icon: '🥚' },
-  { id: 'cat_5', name: 'Chocolates & Cacau', type: 'insumo', icon: '🍫' },
-  { id: 'cat_6', name: 'Castanhas & Frutas Secas', type: 'insumo', icon: '🥜' },
   { id: 'cat_7', name: 'Carnes & Proteínas', type: 'insumo', icon: '🥩' },
+  { id: 'cat_6', name: 'Castanhas & Frutas Secas', type: 'insumo', icon: '🥜' },
+  { id: 'cat_5', name: 'Chocolates & Cacau', type: 'insumo', icon: '🍫' },
   { id: 'cat_8', name: 'Embalagens & Potes', type: 'insumo', icon: '📦' },
   { id: 'cat_9', name: 'Especiarias & Aromas', type: 'insumo', icon: '🌿' },
+  { id: 'cat_1', name: 'Farinhas & Secos', type: 'insumo', icon: '🌾' },
   { id: 'cat_10', name: 'Frutas & Polpas', type: 'insumo', icon: '🍓' },
+  { id: 'cat_3', name: 'Laticínios', type: 'insumo', icon: '🥛' },
+  { id: 'cat_4', name: 'Ovos & Frescos', type: 'insumo', icon: '🥚' },
 
   // --- CATEGORIAS DE RECEITAS ---
-  { id: 'cat_11', name: 'Geleias Artesanais', type: 'receita', icon: '🍓' },
   { id: 'cat_12', name: 'Antepastos & Conservas', type: 'receita', icon: '🫒' },
   { id: 'cat_13', name: 'Bolos & Tortas', type: 'receita', icon: '🍰' },
+  { id: 'cat_16', name: 'Brownies & Barras', type: 'receita', icon: '🍫' },
   { id: 'cat_14', name: 'Doces Finos', type: 'receita', icon: '🧁' },
-  { id: 'cat_15', name: 'Salgados & Massas', type: 'receita', icon: '🥧' },
-  { id: 'cat_16', name: 'Brownies & Barras', type: 'receita', icon: '🍫' }
+  { id: 'cat_11', name: 'Geleias Artesanais', type: 'receita', icon: '🍓' },
+  { id: 'cat_15', name: 'Salgados & Massas', type: 'receita', icon: '🥧' }
 ];
 
 // Dados semente iniciais realistas
@@ -531,7 +531,11 @@ class AppDataStore {
 
   init() {
     if (!localStorage.getItem(STORAGE_KEYS.INGREDIENTS)) {
-      this.saveIngredients(INITIAL_INGREDIENTS);
+      this.saveIngredients([...INITIAL_INGREDIENTS].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })));
+    } else {
+      // Normalização automática: garante que os insumos salvos fiquem em ordem alfabética
+      const ings = this.getIngredients();
+      this.saveIngredients(ings);
     }
     if (!localStorage.getItem(STORAGE_KEYS.RECIPES)) {
       this.saveRecipes(INITIAL_RECIPES);
@@ -546,7 +550,11 @@ class AppDataStore {
       this.saveSettings(DEFAULT_SETTINGS);
     }
     if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
-      this.saveCategories(INITIAL_CATEGORIES);
+      this.saveCategories([...INITIAL_CATEGORIES].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })));
+    } else {
+      // Normalização automática: garante que as categorias salvas fiquem em ordem alfabética
+      const cats = this.getCategories();
+      this.saveCategories(cats);
     }
   }
 
@@ -572,13 +580,16 @@ class AppDataStore {
         return c;
       });
 
+      // Sempre garante ordenação alfabética rigorosa em português (A-Z)
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+
       if (needsSave) {
         this.saveCategories(list);
       }
 
       return list;
     } catch (e) {
-      return INITIAL_CATEGORIES;
+      return [...INITIAL_CATEGORIES].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     }
   }
 
@@ -621,6 +632,7 @@ class AppDataStore {
       icon: (item && item.icon) ? item.icon : ((item && item.type === 'receita') ? '📜' : '🌾')
     };
     list.push(newCat);
+    list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     this.saveCategories(list);
     this._syncDoc('categories', newCat.id, newCat);
     return newCat;
@@ -643,6 +655,7 @@ class AppDataStore {
     if (index !== -1) {
       const oldName = list[index].name;
       list[index] = { ...list[index], ...updatedItem, id };
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
       this.saveCategories(list);
       this._syncDoc('categories', id, list[index]);
 
@@ -698,7 +711,9 @@ class AppDataStore {
   getIngredients() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.INGREDIENTS);
-      return data ? JSON.parse(data) : [];
+      let list = data ? JSON.parse(data) : [];
+      // Sempre retorna os insumos ordenados alfabeticamente pelo nome em português (A-Z)
+      return list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     } catch (e) {
       return [];
     }
@@ -715,7 +730,8 @@ class AppDataStore {
       ...item,
       id: item.id || `ing_${Date.now()}`
     };
-    list.unshift(newItem);
+    list.push(newItem);
+    list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     this.saveIngredients(list);
     this._syncDoc('ingredients', newItem.id, newItem);
     return newItem;
@@ -727,6 +743,7 @@ class AppDataStore {
     const index = list.findIndex(i => i.id === id);
     if (index !== -1) {
       list[index] = { ...list[index], ...updatedItem, id };
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
       this.saveIngredients(list);
       this._syncDoc('ingredients', id, list[index]);
       return list[index];
