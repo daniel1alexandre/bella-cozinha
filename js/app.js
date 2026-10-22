@@ -3291,7 +3291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (lowStockIngredients.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align: center; padding: 36px 16px; color: var(--accent-emerald);">
+            <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--accent-emerald);">
               <div style="font-size: 2.2rem; margin-bottom: 8px;">✨</div>
               <strong style="font-size: 1.05rem;">Estoque 100% abastecido!</strong>
               <p style="font-size: 0.84rem; color: var(--text-dim); margin-top: 4px;">Nenhum insumo está abaixo do estoque de segurança neste momento.</p>
@@ -3301,7 +3301,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-dim);">
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--text-dim);">
               Nenhum insumo em estoque crítico corresponde ao termo "${filterText}".
             </td>
           </tr>
@@ -3321,42 +3321,45 @@ document.addEventListener('DOMContentLoaded', () => {
       return `
         <tr>
           <td>
-            <div style="font-weight: 600; color: #fff;">${ing.name}</div>
-            <div style="font-size: 0.72rem; color: var(--text-dim);">${ing.notes || 'Sem observações'}</div>
+            <div style="font-weight: 600; color: #fff; font-size: 0.90rem; line-height: 1.25; margin-bottom: 3px;">${ing.name}</div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span class="badge" style="font-size: 0.68rem; padding: 2px 6px;">${ing.category || 'Geral'}</span>
+              ${ing.notes ? `<span style="font-size: 0.68rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;" title="${ing.notes}">• ${ing.notes}</span>` : ''}
+            </div>
           </td>
           <td>
-            <span class="badge" style="font-size: 0.75rem;">${ing.category || 'Geral'}</span>
-          </td>
-          <td style="min-width: 140px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600;">
-              <span style="color: ${isZero ? 'var(--accent-rose)' : 'var(--accent-gold)'};">${current} ${ing.packageUnit}</span>
-              <span style="color: var(--text-dim);">Mín: ${min} ${ing.packageUnit}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; font-weight: 600; margin-bottom: 3px;">
+              <span style="color: ${isZero ? 'var(--accent-rose)' : 'var(--accent-gold)'}; font-size: 0.84rem;">${current} ${ing.packageUnit}</span>
+              <span style="color: var(--text-dim); font-size: 0.72rem;">Mín: ${min} ${ing.packageUnit}</span>
             </div>
-            <div class="critical-progress-container">
+            <div class="critical-progress-container" style="margin-top: 2px; margin-bottom: 4px;">
               <div class="critical-progress-bar ${isZero ? 'critical-progress-danger' : 'critical-progress-warning'}" style="width: ${pct}%;"></div>
             </div>
+            <div>
+              ${isZero 
+                ? `<span class="badge-stock-zero" style="font-size: 0.65rem; padding: 1px 6px;">🔴 Esgotado</span>` 
+                : `<span class="badge-stock-low" style="font-size: 0.65rem; padding: 1px 6px;">⚠️ ${pct}% do mínimo</span>`
+              }
+            </div>
+          </td>
+          <td style="text-align: center;">
+            <strong style="color: var(--accent-rose); font-size: 0.88rem; display: block;">+ ${deficit} ${ing.packageUnit}</strong>
+            <span style="font-size: 0.68rem; color: var(--text-dim);">a repor</span>
           </td>
           <td>
-            ${isZero 
-              ? `<span class="badge-stock-zero">🔴 Zerado</span>` 
-              : `<span class="badge-stock-low">⚠️ ${pct}% do mínimo</span>`
-            }
+            <div style="font-weight: 600; font-size: 0.86rem; color: #fff;">${GastronomyCalc.formatCurrency(ing.packagePrice)}</div>
+            <span style="font-size: 0.70rem; color: var(--text-dim);">por ${ing.packageQty} ${ing.packageUnit}</span>
           </td>
           <td>
-            <strong style="color: var(--accent-rose); font-size: 0.88rem;">+ ${deficit} ${ing.packageUnit}</strong>
-          </td>
-          <td>
-            <span style="font-weight: 600;">${GastronomyCalc.formatCurrency(ing.packagePrice)}</span>
-            <span style="font-size: 0.72rem; color: var(--text-dim); display: block;">por ${ing.packageQty} ${ing.packageUnit}</span>
-          </td>
-          <td>
-            <span style="font-size: 0.82rem; color: var(--text-muted);">${ing.supplier || '<em style="color: var(--text-dim);">Não informado</em>'}</span>
+            <span style="font-size: 0.80rem; color: var(--text-main); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${ing.supplier || 'Não informado'}">
+              ${ing.supplier || '<em style="color: var(--text-dim);">Não informado</em>'}
+            </span>
           </td>
           <td style="text-align: right; white-space: nowrap;">
             <button type="button" class="btn btn-sm btn-primary btn-critical-buy" data-id="${ing.id}" data-suggest="${suggestedBuy}" title="Registrar compra deste insumo agora">
               <span>🛒</span> Comprar
             </button>
-            <button type="button" class="btn btn-sm btn-outline btn-critical-adjust" data-id="${ing.id}" title="Ajuste manual de saldo" style="margin-left: 4px;">
+            <button type="button" class="btn btn-sm btn-outline btn-critical-adjust" data-id="${ing.id}" title="Ajuste manual de saldo" style="margin-left: 3px;">
               ⚡
             </button>
           </td>

@@ -2059,5 +2059,77 @@ textarea.form-control:focus {
   font-weight: 600;
 }
 
+/* ====================================================================
+   AJUSTE DE LARGURA E ELIMINAÇÃO DE SCROLLBAR HORIZONTAL NO MODAL
+   ==================================================================== */
+#modalCriticalStockList .modal-container {
+  max-width: min(1260px, 96vw) !important;
+  width: 96vw !important;
+  max-height: calc(100vh - 40px);
+}
+
+#modalCriticalStockList .modal-body {
+  padding: 16px 20px !important;
+  overflow-x: hidden !important;
+}
+
+.table-critical-wrap {
+  width: 100% !important;
+  overflow-x: hidden !important;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.table-critical {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+
+.table-critical th {
+  padding: 11px 8px !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.03em !important;
+  white-space: nowrap !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  color: var(--text-muted) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.table-critical td {
+  padding: 9px 8px !important;
+  font-size: 0.82rem !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  vertical-align: middle !important;
+}
+
+.table-critical th:first-child,
+.table-critical td:first-child {
+  padding-left: 14px !important;
+}
+
+.table-critical th:last-child,
+.table-critical td:last-child {
+  padding-right: 14px !important;
+}
+
+.table-critical .btn-critical-buy {
+  padding: 5px 9px !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+}
+
+.table-critical .btn-critical-adjust {
+  padding: 5px 7px !important;
+  font-size: 0.74rem !important;
+}
+
+.table-critical .critical-progress-container {
+  margin-top: 4px;
+  height: 5px;
+}
+
+
 
 

@@ -1663,7 +1663,7 @@ service cloud.firestore {
        MODAL 6: RELAÇÃO COMPLETA DE ESTOQUE CRÍTICO
        ======================================================= -->
   <div class="modal-overlay" id="modalCriticalStockList">
-    <div class="modal-container modal-lg" style="max-width: 960px;">
+    <div class="modal-container modal-xl" style="max-width: min(1240px, 96vw); width: 100%;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 1.5rem;">⚠️</span>
@@ -1703,19 +1703,17 @@ service cloud.firestore {
           </button>
         </div>
 
-        <!-- Tabela dos Itens Críticos -->
-        <div class="table-responsive">
-          <table class="custom-table" id="tableCriticalStockList">
+        <!-- Tabela dos Itens Críticos (Ajustada 100% sem barra de rolagem horizontal) -->
+        <div class="table-responsive table-critical-wrap">
+          <table class="custom-table table-critical" id="tableCriticalStockList">
             <thead>
               <tr>
-                <th>Insumo</th>
-                <th>Categoria</th>
-                <th>Saldo Atual / Mínimo</th>
-                <th>Status</th>
-                <th>Sugestão Reposição</th>
-                <th>Preço Embalagem</th>
-                <th>Fornecedor Habitual</th>
-                <th style="text-align: right;">Ações</th>
+                <th style="width: 28%;">Insumo & Categoria</th>
+                <th style="width: 22%;">Estoque Atual / Mínimo</th>
+                <th style="width: 12%; text-align: center;">Reposição</th>
+                <th style="width: 13%;">Preço Embalagem</th>
+                <th style="width: 13%;">Fornecedor</th>
+                <th style="width: 12%; text-align: right;">Ações</th>
               </tr>
             </thead>
             <tbody id="tbodyCriticalStockList">
