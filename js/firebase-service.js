@@ -289,7 +289,19 @@ class FirebaseSyncService {
         await commitBatchIfNeeded();
       }
 
-      // 7. Metadados do Sistema
+      // 7. Compras (Purchases)
+      const purchases = typeof store.getPurchases === 'function' ? store.getPurchases() : [];
+      for (const pur of purchases) {
+        const ref = this.firestore.collection('purchases').doc(String(pur.id));
+        currentBatch.set(ref, {
+          ...JSON.parse(JSON.stringify(pur)),
+          _syncedAt: new Date().toISOString()
+        }, { merge: true });
+        opCount++;
+        await commitBatchIfNeeded();
+      }
+
+      // 8. Metadados do Sistema
       const metaRef = this.firestore.collection('meta').doc('sync');
       const nowIso = new Date().toISOString();
       currentBatch.set(metaRef, {
@@ -300,7 +312,8 @@ class FirebaseSyncService {
           ingredients: ingredients.length,
           recipes: recipes.length,
           products: products.length,
-          sales: sales.length
+          sales: sales.length,
+          purchases: purchases.length
         }
       }, { merge: true });
       opCount++;
@@ -420,6 +433,19 @@ class FirebaseSyncService {
         // Ordena vendas por data decrescente
         list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         store.saveSales(list);
+      }
+
+      // 7. Purchases
+      const purchasesSnap = await this.firestore.collection('purchases').get();
+      if (!purchasesSnap.empty && typeof store.savePurchases === 'function') {
+        const list = purchasesSnap.docs.map(doc => {
+          const d = doc.data();
+          delete d._syncedAt;
+          delete d._updatedAt;
+          return d;
+        });
+        list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        store.savePurchases(list);
       }
 
       const nowIso = new Date().toISOString();

@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
   PRODUCTS: 'bella_cozinha_products_v1',
   SALES: 'bella_cozinha_sales_v1',
   SETTINGS: 'bella_cozinha_settings_v1',
-  CATEGORIES: 'bella_cozinha_categories_v1'
+  CATEGORIES: 'bella_cozinha_categories_v1',
+  PURCHASES: 'bella_cozinha_purchases_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -549,6 +550,9 @@ class AppDataStore {
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
       this.saveSettings(DEFAULT_SETTINGS);
     }
+    if (!localStorage.getItem(STORAGE_KEYS.PURCHASES)) {
+      this.savePurchases(this.generateInitialPurchases());
+    }
     if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
       this.saveCategories([...INITIAL_CATEGORIES].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })));
     } else {
@@ -939,6 +943,145 @@ class AppDataStore {
     return true;
   }
 
+  // =========================================================================
+  // PURCHASES (COMPRAS & ENTRADA DE ESTOQUE)
+  // =========================================================================
+  generateInitialPurchases() {
+    const now = new Date();
+    return [
+      {
+        id: 'pur_101',
+        date: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        ingredientId: 'ing_1',
+        ingredientName: 'Farinha de Trigo Especial Tipo 1',
+        category: 'Farinhas & Secos',
+        quantity: 10,
+        quantityAdded: 10,
+        unit: 'kg',
+        packagePrice: 5.90,
+        totalCost: 59.00,
+        supplier: 'Moinho Real',
+        invoiceNumber: 'NF-8421',
+        paymentMethod: 'Pix',
+        notes: 'Reposição quinzenal de farinha especial'
+      },
+      {
+        id: 'pur_102',
+        date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        ingredientId: 'ing_8',
+        ingredientName: 'Chocolate Nobre Meio Amargo 54%',
+        category: 'Chocolates & Cacau',
+        quantity: 2,
+        quantityAdded: 2100,
+        unit: 'g',
+        packagePrice: 58.00,
+        totalCost: 116.00,
+        supplier: 'Barry Callebaut Dist.',
+        invoiceNumber: 'NF-9150',
+        paymentMethod: 'Boleto',
+        notes: 'Gotas temperadas para brownies'
+      },
+      {
+        id: 'pur_103',
+        date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        ingredientId: 'ing_3',
+        ingredientName: 'Manteiga Extra sem Sal',
+        category: 'Laticínios',
+        quantity: 4,
+        quantityAdded: 2000,
+        unit: 'g',
+        packagePrice: 17.50,
+        totalCost: 70.00,
+        supplier: 'Laticínios Serra Alta',
+        invoiceNumber: 'NF-1042',
+        paymentMethod: 'Cartão de Débito',
+        notes: 'Lote novo para massas e recheios'
+      }
+    ];
+  }
+
+  getPurchases() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.PURCHASES);
+      const list = data ? JSON.parse(data) : [];
+      // Ordena pelas mais recentes primeiro
+      return list.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  savePurchases(items) {
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(items));
+  }
+
+  addPurchase(purchase) {
+    const list = this.getPurchases();
+    const newPurchase = {
+      ...purchase,
+      id: purchase.id || `pur_${Date.now()}`,
+      date: purchase.date || new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString()
+    };
+
+    // 1. Atualiza o insumo correspondente:
+    // - Atualiza o estoque adicionando a quantidade comprada
+    // - Atualiza o valor/preço da embalagem para atualizar custos nas fichas técnicas
+    // - Registra a data da última compra e fornecedor
+    const ingredients = this.getIngredients();
+    const ingIndex = ingredients.findIndex(i => i.id === newPurchase.ingredientId);
+    let updatedIngredient = null;
+
+    if (ingIndex !== -1) {
+      const ing = ingredients[ingIndex];
+      const qtyToAdd = parseFloat(newPurchase.quantityAdded ?? newPurchase.quantity) || 0;
+      const current = parseFloat(ing.currentStock) || 0;
+      const newStock = Math.max(0, Math.round((current + qtyToAdd) * 100) / 100);
+
+      const updateData = {
+        currentStock: newStock,
+        lastPurchaseDate: newPurchase.date
+      };
+
+      // Atualiza o valor do insumo se foi informado novo preço de compra
+      if (newPurchase.packagePrice !== undefined && newPurchase.packagePrice !== null && !isNaN(newPurchase.packagePrice) && Number(newPurchase.packagePrice) > 0) {
+        updateData.packagePrice = parseFloat(newPurchase.packagePrice);
+      }
+
+      if (newPurchase.supplier) {
+        updateData.supplier = newPurchase.supplier;
+      }
+
+      updatedIngredient = this.updateIngredient(ing.id, updateData);
+    }
+
+    list.unshift(newPurchase);
+    this.savePurchases(list);
+    this._syncDoc('purchases', newPurchase.id, newPurchase);
+
+    return { purchase: newPurchase, ingredient: updatedIngredient };
+  }
+
+  deletePurchase(id, revertStock = true) {
+    const list = this.getPurchases();
+    const pur = list.find(p => p.id === id);
+
+    if (pur && revertStock && pur.ingredientId) {
+      const ing = this.getIngredients().find(i => i.id === pur.ingredientId);
+      if (ing) {
+        const qtyToSubtract = parseFloat(pur.quantityAdded ?? pur.quantity) || 0;
+        const current = parseFloat(ing.currentStock) || 0;
+        const newStock = Math.max(0, Math.round((current - qtyToSubtract) * 100) / 100);
+        this.updateIngredient(ing.id, { currentStock: newStock });
+      }
+    }
+
+    const filtered = list.filter(p => p.id !== id);
+    this.savePurchases(filtered);
+    this._deleteDoc('purchases', id);
+    return true;
+  }
+
   // Backup & Restore
   exportAllDataJSON() {
     return JSON.stringify({
@@ -949,7 +1092,8 @@ class AppDataStore {
       ingredients: this.getIngredients(),
       recipes: this.getRecipes(),
       products: this.getProducts(),
-      sales: this.getSales()
+      sales: this.getSales(),
+      purchases: this.getPurchases()
     }, null, 2);
   }
 
@@ -962,6 +1106,7 @@ class AppDataStore {
       if (Array.isArray(data.recipes)) this.saveRecipes(data.recipes);
       if (Array.isArray(data.products)) this.saveProducts(data.products);
       if (Array.isArray(data.sales)) this.saveSales(data.sales);
+      if (Array.isArray(data.purchases)) this.savePurchases(data.purchases);
       return { success: true };
     } catch (e) {
       return { success: false, error: e.message };
@@ -975,6 +1120,7 @@ class AppDataStore {
     this.saveRecipes(INITIAL_RECIPES);
     this.saveProducts(INITIAL_PRODUCTS);
     this.saveSales(generateSampleSales());
+    this.savePurchases(this.generateInitialPurchases());
   }
 }
 

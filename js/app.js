@@ -54,6 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
       title: 'Controle Financeiro & Registro de Vendas',
       subtitle: 'Apuração de CMV, faturamento e lucro líquido real por pedido'
     },
+    purchases: {
+      title: 'Gestão de Compras & Entrada de Estoque',
+      subtitle: 'Registre compras de insumos, atualize custos e acompanhe o histórico de aquisições'
+    },
     settings: {
       title: 'Configurações do Negócio & Backup',
       subtitle: 'Taxas padrão, custo da hora de trabalho e exportação/importação de dados'
@@ -110,6 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
       renderProductsGrid();
     } else if (tabId === 'sales') {
       renderSalesTable();
+    } else if (tabId === 'purchases') {
+      renderPurchasesView();
     } else if (tabId === 'settings') {
       loadSettingsForm();
     }
@@ -173,6 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.innerHTML = '<span>✨</span> Nova Venda (PDV)';
       btn.addEventListener('click', () => openNewSaleModal());
       topbarActionArea.appendChild(btn);
+    } else if (tabId === 'purchases') {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.innerHTML = '<span>🛒 +</span> Registrar Compra';
+      btn.addEventListener('click', () => openNewPurchaseModal());
+      topbarActionArea.appendChild(btn);
     }
   }
 
@@ -196,6 +208,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // Atalho do dashboard para insumos
   document.getElementById('btnGoToIngredients')?.addEventListener('click', () => {
     switchTab('ingredients');
+  });
+
+  // Clique no card Estoque Crítico do Dashboard para abrir a relação completa
+  document.getElementById('cardCriticalStock')?.addEventListener('click', () => {
+    openCriticalStockModal();
+  });
+
+  // Clique no card de alerta na tela de Compras
+  document.getElementById('cardPurchasesAlertBox')?.addEventListener('click', () => {
+    openCriticalStockModal();
+  });
+
+  // Botão no modal de estoque crítico para ir para Compras
+  document.getElementById('btnCriticalGoToPurchases')?.addEventListener('click', () => {
+    closeModal('modalCriticalStockList');
+    switchTab('purchases');
+  });
+
+  // Botão "+ Registrar Compra" na tela de Compras
+  document.getElementById('btnOpenNewPurchaseModal')?.addEventListener('click', () => {
+    openNewPurchaseModal();
+  });
+
+  // Busca em tempo real no modal de estoque crítico
+  document.getElementById('inputSearchCriticalList')?.addEventListener('input', (e) => {
+    renderCriticalStockModalRows(e.target.value);
+  });
+
+  // Filtros na tela de compras
+  document.getElementById('inputSearchPurchases')?.addEventListener('input', () => {
+    renderPurchasesTable();
+  });
+  document.getElementById('selectPurchasesPeriod')?.addEventListener('change', () => {
+    renderPurchasesTable();
   });
 
   // =========================================================================
@@ -3190,8 +3236,576 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModal('modalSale');
     renderSalesTable();
     renderDashboard();
-    renderIngredientsTable();
+    renderCategoriesTable();
+    renderAllIngredientsTable();
   });
+
+  // =========================================================================
+  // RELAÇÃO DE ESTOQUE CRÍTICO (MODAL & VISUALIZAÇÃO COMPLETA)
+  // =========================================================================
+  function openCriticalStockModal(searchQuery = '') {
+    const searchInput = document.getElementById('inputSearchCriticalList');
+    if (searchInput) {
+      searchInput.value = searchQuery;
+    }
+    renderCriticalStockModalRows(searchQuery);
+    openModal('modalCriticalStockList');
+  }
+
+  function renderCriticalStockModalRows(filterText = '') {
+    const ingredients = window.db.getIngredients();
+    const lowStockIngredients = ingredients.filter(i => (parseFloat(i.currentStock) || 0) <= (parseFloat(i.minStock) || 0));
+    const zeroStock = lowStockIngredients.filter(i => (parseFloat(i.currentStock) || 0) <= 0);
+
+    // Atualiza KPIs do Modal
+    const totalCountEl = document.getElementById('criticalModalTotalCount');
+    const zeroCountEl = document.getElementById('criticalModalZeroCount');
+    const estimateCostEl = document.getElementById('criticalModalEstimateCost');
+
+    if (totalCountEl) totalCountEl.textContent = lowStockIngredients.length;
+    if (zeroCountEl) zeroCountEl.textContent = zeroStock.length;
+
+    let totalEstCost = 0;
+    lowStockIngredients.forEach(ing => {
+      const deficit = Math.max(0, (parseFloat(ing.minStock) || 0) - (parseFloat(ing.currentStock) || 0));
+      const baseCost = GastronomyCalc.calcBaseUnitCost(ing.packagePrice, ing.packageQty, ing.packageUnit, ing.correctionFactor || 1);
+      const defInBase = GastronomyCalc.toBaseUnitQty(deficit, ing.packageUnit);
+      totalEstCost += defInBase * baseCost;
+    });
+
+    if (estimateCostEl) {
+      estimateCostEl.textContent = GastronomyCalc.formatCurrency(totalEstCost);
+    }
+
+    const tbody = document.getElementById('tbodyCriticalStockList');
+    if (!tbody) return;
+
+    const term = (filterText || '').toLowerCase().trim();
+    const filtered = term ? lowStockIngredients.filter(i => 
+      (i.name || '').toLowerCase().includes(term) ||
+      (i.category || '').toLowerCase().includes(term) ||
+      (i.supplier || '').toLowerCase().includes(term)
+    ) : lowStockIngredients;
+
+    if (filtered.length === 0) {
+      if (lowStockIngredients.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 36px 16px; color: var(--accent-emerald);">
+              <div style="font-size: 2.2rem; margin-bottom: 8px;">✨</div>
+              <strong style="font-size: 1.05rem;">Estoque 100% abastecido!</strong>
+              <p style="font-size: 0.84rem; color: var(--text-dim); margin-top: 4px;">Nenhum insumo está abaixo do estoque de segurança neste momento.</p>
+            </td>
+          </tr>
+        `;
+      } else {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-dim);">
+              Nenhum insumo em estoque crítico corresponde ao termo "${filterText}".
+            </td>
+          </tr>
+        `;
+      }
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(ing => {
+      const current = parseFloat(ing.currentStock) || 0;
+      const min = parseFloat(ing.minStock) || 1;
+      const isZero = current <= 0;
+      const pct = Math.min(100, Math.max(0, Math.round((current / min) * 100)));
+      const deficit = Math.max(0, Math.round((min - current) * 100) / 100);
+      const suggestedBuy = deficit > 0 ? deficit : 1;
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 600; color: #fff;">${ing.name}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim);">${ing.notes || 'Sem observações'}</div>
+          </td>
+          <td>
+            <span class="badge" style="font-size: 0.75rem;">${ing.category || 'Geral'}</span>
+          </td>
+          <td style="min-width: 140px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600;">
+              <span style="color: ${isZero ? 'var(--accent-rose)' : 'var(--accent-gold)'};">${current} ${ing.packageUnit}</span>
+              <span style="color: var(--text-dim);">Mín: ${min} ${ing.packageUnit}</span>
+            </div>
+            <div class="critical-progress-container">
+              <div class="critical-progress-bar ${isZero ? 'critical-progress-danger' : 'critical-progress-warning'}" style="width: ${pct}%;"></div>
+            </div>
+          </td>
+          <td>
+            ${isZero 
+              ? `<span class="badge-stock-zero">🔴 Zerado</span>` 
+              : `<span class="badge-stock-low">⚠️ ${pct}% do mínimo</span>`
+            }
+          </td>
+          <td>
+            <strong style="color: var(--accent-rose); font-size: 0.88rem;">+ ${deficit} ${ing.packageUnit}</strong>
+          </td>
+          <td>
+            <span style="font-weight: 600;">${GastronomyCalc.formatCurrency(ing.packagePrice)}</span>
+            <span style="font-size: 0.72rem; color: var(--text-dim); display: block;">por ${ing.packageQty} ${ing.packageUnit}</span>
+          </td>
+          <td>
+            <span style="font-size: 0.82rem; color: var(--text-muted);">${ing.supplier || '<em style="color: var(--text-dim);">Não informado</em>'}</span>
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button type="button" class="btn btn-sm btn-primary btn-critical-buy" data-id="${ing.id}" data-suggest="${suggestedBuy}" title="Registrar compra deste insumo agora">
+              <span>🛒</span> Comprar
+            </button>
+            <button type="button" class="btn btn-sm btn-outline btn-critical-adjust" data-id="${ing.id}" title="Ajuste manual de saldo" style="margin-left: 4px;">
+              ⚡
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Binds de ações
+    tbody.querySelectorAll('.btn-critical-buy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const suggest = parseFloat(btn.getAttribute('data-suggest')) || 1;
+        closeModal('modalCriticalStockList');
+        openNewPurchaseModal(id, suggest);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-critical-adjust').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        closeModal('modalCriticalStockList');
+        openStockAdjustModal(id);
+      });
+    });
+  }
+
+  // =========================================================================
+  // MÓDULO DE COMPRAS (PURCHASES) & ENTRADA DE ESTOQUE
+  // =========================================================================
+  function renderPurchasesView() {
+    renderPurchasesKPIs();
+    renderPurchasesTable();
+  }
+
+  function renderPurchasesKPIs() {
+    const purchases = window.db.getPurchases();
+    const ingredients = window.db.getIngredients();
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    const monthPurchases = purchases.filter(p => {
+      const d = new Date(p.date || p.createdAt || 0);
+      return !isNaN(d.getTime()) && d.getFullYear() === curYear && d.getMonth() === curMonth;
+    });
+
+    const monthTotal = monthPurchases.reduce((acc, p) => acc + (parseFloat(p.totalCost) || 0), 0);
+    const allTotal = purchases.reduce((acc, p) => acc + (parseFloat(p.totalCost) || 0), 0);
+    const avgTicket = purchases.length > 0 ? allTotal / purchases.length : 0;
+
+    const lowStockCount = ingredients.filter(i => (parseFloat(i.currentStock) || 0) <= (parseFloat(i.minStock) || 0)).length;
+
+    // Atualiza DOM
+    const kpiMonthTotal = document.getElementById('kpiPurchasesMonthTotal');
+    const kpiMonthCount = document.getElementById('kpiPurchasesMonthCount');
+    const kpiAllTotal = document.getElementById('kpiPurchasesAllTotal');
+    const kpiAllCount = document.getElementById('kpiPurchasesAllCount');
+    const kpiAvgTicket = document.getElementById('kpiPurchasesAvgTicket');
+    const kpiLastDate = document.getElementById('kpiPurchasesLastDate');
+    const kpiLastSupplier = document.getElementById('kpiPurchasesLastSupplier');
+    const kpiLowStockCount = document.getElementById('kpiPurchasesLowStockCount');
+    const kpiLowStockSub = document.getElementById('kpiPurchasesLowStockSub');
+    const sidebarPurchasesBadge = document.getElementById('sidebarPurchasesBadge');
+
+    if (kpiMonthTotal) kpiMonthTotal.textContent = GastronomyCalc.formatCurrency(monthTotal);
+    if (kpiMonthCount) kpiMonthCount.textContent = `${monthPurchases.length} compra(s) neste mês`;
+    if (kpiAllTotal) kpiAllTotal.textContent = GastronomyCalc.formatCurrency(allTotal);
+    if (kpiAllCount) kpiAllCount.textContent = `${purchases.length} compras no total`;
+    if (kpiAvgTicket) kpiAvgTicket.textContent = GastronomyCalc.formatCurrency(avgTicket);
+
+    if (purchases.length > 0) {
+      const last = purchases[0];
+      const d = new Date(last.date || last.createdAt || 0);
+      const dateStr = !isNaN(d.getTime()) ? d.toLocaleDateString('pt-BR') : last.date;
+      if (kpiLastDate) kpiLastDate.textContent = dateStr;
+      if (kpiLastSupplier) kpiLastSupplier.textContent = `${last.ingredientName} (${last.supplier || 'Fornecedor n/i'})`;
+    } else {
+      if (kpiLastDate) kpiLastDate.textContent = '--';
+      if (kpiLastSupplier) kpiLastSupplier.textContent = 'Nenhuma compra registrada';
+    }
+
+    if (kpiLowStockCount) kpiLowStockCount.textContent = lowStockCount;
+    if (kpiLowStockSub) kpiLowStockSub.textContent = lowStockCount === 1 ? '1 insumo abaixo do mínimo' : `${lowStockCount} insumos em alerta`;
+
+    if (sidebarPurchasesBadge) {
+      if (purchases.length > 0) {
+        sidebarPurchasesBadge.textContent = purchases.length;
+        sidebarPurchasesBadge.style.display = 'inline-block';
+      } else {
+        sidebarPurchasesBadge.style.display = 'none';
+      }
+    }
+  }
+
+  function renderPurchasesTable() {
+    const tbody = document.getElementById('tbodyPurchases');
+    if (!tbody) return;
+
+    const purchases = window.db.getPurchases();
+    const recipes = window.db.getRecipes();
+    const categories = window.db.getCategories();
+    const catMap = new Map(categories.map(c => [c.name, c.icon || '🌾']));
+
+    const searchTerm = (document.getElementById('inputSearchPurchases')?.value || '').toLowerCase().trim();
+    const period = document.getElementById('selectPurchasesPeriod')?.value || 'all';
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const sevenDaysAgo = startOfToday - 7 * 24 * 60 * 60 * 1000;
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    const filtered = purchases.filter(p => {
+      // Filtro de texto
+      if (searchTerm) {
+        const matchesName = (p.ingredientName || '').toLowerCase().includes(searchTerm);
+        const matchesCategory = (p.category || '').toLowerCase().includes(searchTerm);
+        const matchesSupplier = (p.supplier || '').toLowerCase().includes(searchTerm);
+        const matchesInvoice = (p.invoiceNumber || '').toLowerCase().includes(searchTerm);
+        const matchesNotes = (p.notes || '').toLowerCase().includes(searchTerm);
+        if (!matchesName && !matchesCategory && !matchesSupplier && !matchesInvoice && !matchesNotes) {
+          return false;
+        }
+      }
+
+      // Filtro de período
+      if (period !== 'all') {
+        const pDate = new Date(p.date || p.createdAt || 0);
+        const pTime = pDate.getTime();
+        if (isNaN(pTime)) return true;
+
+        if (period === 'today') {
+          return pTime >= startOfToday;
+        } else if (period === 'week') {
+          return pTime >= sevenDaysAgo;
+        } else if (period === 'month') {
+          return pDate.getFullYear() === curYear && pDate.getMonth() === curMonth;
+        } else if (period === 'last-month') {
+          const lastMonth = curMonth === 0 ? 11 : curMonth - 1;
+          const lastYear = curMonth === 0 ? curYear - 1 : curYear;
+          return pDate.getFullYear() === lastYear && pDate.getMonth() === lastMonth;
+        }
+      }
+
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 40px 16px; color: var(--text-dim);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">🛒</div>
+            <strong style="font-size: 1.05rem; color: var(--text-muted);">Nenhuma compra encontrada</strong>
+            <p style="font-size: 0.82rem; margin-top: 4px;">Não há lançamentos de compras com os filtros aplicados.</p>
+            <button type="button" class="btn btn-sm btn-primary" id="btnEmptyPurchasesNew" style="margin-top: 12px;">
+              <span>+</span> Registrar Primeira Compra
+            </button>
+          </td>
+        </tr>
+      `;
+      document.getElementById('btnEmptyPurchasesNew')?.addEventListener('click', () => openNewPurchaseModal());
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(pur => {
+      const pDate = new Date(pur.date || pur.createdAt || 0);
+      const dateDisplay = !isNaN(pDate.getTime()) ? pDate.toLocaleDateString('pt-BR') : pur.date;
+      const catIcon = catMap.get(pur.category) || '🌾';
+
+      // Identifica fichas técnicas que utilizam esse insumo
+      const linkedRecipes = recipes.filter(r => (r.items || []).some(item => item.ingredientId === pur.ingredientId));
+      const recipeNames = linkedRecipes.map(r => r.name).join(', ');
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 600; color: #fff;">${dateDisplay}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim);">${pur.paymentMethod || 'Dinheiro/Pix'}</div>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.15rem;">${catIcon}</span>
+              <div>
+                <strong style="color: #fff; font-size: 0.92rem;">${pur.ingredientName}</strong>
+                ${pur.notes ? `<div style="font-size: 0.72rem; color: var(--text-dim);">${pur.notes}</div>` : ''}
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge" style="font-size: 0.75rem;">${pur.category || 'Geral'}</span>
+          </td>
+          <td>
+            <strong style="color: var(--accent-gold); font-size: 0.92rem;">+ ${pur.quantity} ${pur.unit || ''}</strong>
+          </td>
+          <td>
+            <span style="font-weight: 600;">${GastronomyCalc.formatCurrency(pur.packagePrice || 0)}</span>
+            <span style="font-size: 0.72rem; color: var(--accent-emerald); display: block;">custo atualizado</span>
+          </td>
+          <td>
+            <span style="font-family: var(--font-heading); font-weight: 700; color: var(--accent-emerald); font-size: 1rem;">
+              ${GastronomyCalc.formatCurrency(pur.totalCost || 0)}
+            </span>
+          </td>
+          <td>
+            <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+              ${pur.supplier || '<em style="color: var(--text-dim);">Não informado</em>'}
+            </div>
+            ${pur.invoiceNumber ? `<span class="badge" style="font-size: 0.68rem; margin-top: 2px;">NF: ${pur.invoiceNumber}</span>` : ''}
+          </td>
+          <td>
+            ${linkedRecipes.length > 0 
+              ? `<span class="badge-recipes-impacted" title="Fichas técnicas com custos recalculados: ${recipeNames}">
+                  📜 ${linkedRecipes.length} receita(s) recalculada(s)
+                 </span>`
+              : `<span style="font-size: 0.74rem; color: var(--text-dim);">Sem receitas vinculadas</span>`
+            }
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button type="button" class="btn btn-icon btn-sm btn-outline btn-delete-purchase" data-id="${pur.id}" title="Excluir esta compra e abater estoque">
+              🗑️
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('.btn-delete-purchase').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const pur = window.db.getPurchases().find(p => p.id === id);
+        if (!pur) return;
+
+        const confirmMsg = `Deseja realmente excluir a compra de "${pur.quantity} ${pur.unit || ''} de ${pur.ingredientName}" do dia ${pur.date}?\n\nO saldo correspondente será abatido do estoque atual.`;
+        if (confirm(confirmMsg)) {
+          window.db.deletePurchase(id, true);
+          showToast(`Compra de ${pur.ingredientName} excluída e estoque ajustado com sucesso.`);
+          renderPurchasesView();
+          renderDashboard();
+          renderCategoriesTable();
+          renderAllIngredientsTable();
+        }
+      });
+    });
+  }
+
+  function openNewPurchaseModal(preselectedIngredientId = null, suggestedQty = null) {
+    const ingredients = window.db.getIngredients();
+    const select = document.getElementById('purchaseIngredientId');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Selecione o Insumo Comprado --</option>' + ingredients.map(ing => `
+      <option value="${ing.id}">${ing.name} (Saldo atual: ${ing.currentStock} ${ing.packageUnit} | R$ ${parseFloat(ing.packagePrice).toFixed(2)})</option>
+    `).join('');
+
+    // Preenche data com a data de hoje (YYYY-MM-DD)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('purchaseDate');
+    if (dateInput) dateInput.value = todayStr;
+
+    // Reseta campos
+    document.getElementById('purchaseQuantity').value = suggestedQty ? suggestedQty : '';
+    document.getElementById('purchasePackagePrice').value = '';
+    document.getElementById('purchaseTotalCost').value = '';
+    document.getElementById('purchaseSupplier').value = '';
+    document.getElementById('purchaseInvoice').value = '';
+    document.getElementById('purchaseNotes').value = '';
+
+    if (preselectedIngredientId) {
+      select.value = preselectedIngredientId;
+    }
+
+    updatePurchaseModalContext();
+    openModal('modalPurchase');
+  }
+
+  function updatePurchaseModalContext() {
+    const select = document.getElementById('purchaseIngredientId');
+    const ingId = select?.value;
+    const ing = window.db.getIngredients().find(i => i.id === ingId);
+
+    const infoBox = document.getElementById('purchaseIngredientInfoBox');
+    const infoText = document.getElementById('purchaseIngredientInfoText');
+    const unitAffix = document.getElementById('purchaseUnitAffix');
+    const packagePriceInput = document.getElementById('purchasePackagePrice');
+    const supplierInput = document.getElementById('purchaseSupplier');
+    const qtyInput = document.getElementById('purchaseQuantity');
+    const totalCostInput = document.getElementById('purchaseTotalCost');
+
+    if (!ing) {
+      if (infoBox) infoBox.style.display = 'none';
+      if (unitAffix) unitAffix.textContent = 'un';
+      return;
+    }
+
+    if (unitAffix) unitAffix.textContent = ing.packageUnit;
+
+    // Preenche valor atual da embalagem se estiver vazio ou se selecionou outro insumo
+    if (!packagePriceInput.value || packagePriceInput.getAttribute('data-last-ing-id') !== ing.id) {
+      packagePriceInput.value = ing.packagePrice;
+      packagePriceInput.setAttribute('data-last-ing-id', ing.id);
+    }
+
+    // Preenche fornecedor se estiver vazio
+    if (!supplierInput.value && ing.supplier) {
+      supplierInput.value = ing.supplier;
+    }
+
+    // Calcula impacto em receitas
+    const recipes = window.db.getRecipes();
+    const linkedRecipes = recipes.filter(r => (r.items || []).some(item => item.ingredientId === ing.id));
+
+    if (infoBox) infoBox.style.display = 'block';
+
+    if (infoText) {
+      if (linkedRecipes.length > 0) {
+        const recipeListStr = linkedRecipes.map(r => `<strong>${r.name}</strong>`).join(', ');
+        infoText.innerHTML = `
+          <span>⚠️ Este insumo é utilizado em <strong>${linkedRecipes.length} ficha(s) técnica(s)</strong>: ${recipeListStr}. Ao salvar, o custo de todas estas receitas será recalculado automaticamente com o novo valor informado!</span>
+        `;
+      } else {
+        infoText.innerHTML = `
+          <span style="color: var(--text-dim);">Este insumo ainda não está vinculado a nenhuma ficha técnica. O valor e o estoque serão atualizados no cadastro mestre.</span>
+        `;
+      }
+    }
+
+    const currentStock = parseFloat(ing.currentStock) || 0;
+    const qtyBought = parseFloat(qtyInput.value) || 0;
+    const newStock = Math.round((currentStock + qtyBought) * 100) / 100;
+
+    const curStockEl = document.getElementById('purchasePreviewCurrentStock');
+    const pkgSpecEl = document.getElementById('purchasePreviewPackageSpec');
+    const curPriceEl = document.getElementById('purchasePreviewCurrentPrice');
+    const resStockEl = document.getElementById('purchasePreviewResultStock');
+
+    if (curStockEl) curStockEl.textContent = `${currentStock} ${ing.packageUnit}`;
+    if (pkgSpecEl) pkgSpecEl.textContent = `${ing.packageQty} ${ing.packageUnit}`;
+    if (curPriceEl) curPriceEl.textContent = GastronomyCalc.formatCurrency(ing.packagePrice);
+    if (resStockEl) resStockEl.textContent = `${newStock} ${ing.packageUnit} (+${qtyBought})`;
+
+    // Atualiza Total da Compra sugerido
+    if (qtyBought > 0 && packagePriceInput.value) {
+      const pkgPrice = parseFloat(packagePriceInput.value) || 0;
+      const pkgQty = parseFloat(ing.packageQty) || 1;
+      const calcTotal = (qtyBought / pkgQty) * pkgPrice;
+      if (!totalCostInput.value || totalCostInput.getAttribute('data-auto-calc') === 'true') {
+        totalCostInput.value = Math.max(0, Math.round(calcTotal * 100) / 100).toFixed(2);
+        totalCostInput.setAttribute('data-auto-calc', 'true');
+      }
+    }
+  }
+
+  // Listeners do Modal de Compra
+  const purchaseIngSelect = document.getElementById('purchaseIngredientId');
+  const purchaseQtyInput = document.getElementById('purchaseQuantity');
+  const purchasePriceInput = document.getElementById('purchasePackagePrice');
+  const purchaseTotalCostInput = document.getElementById('purchaseTotalCost');
+
+  purchaseIngSelect?.addEventListener('change', () => {
+    updatePurchaseModalContext();
+  });
+
+  purchaseQtyInput?.addEventListener('input', () => {
+    purchaseTotalCostInput?.setAttribute('data-auto-calc', 'true');
+    updatePurchaseModalContext();
+  });
+
+  purchasePriceInput?.addEventListener('input', () => {
+    purchaseTotalCostInput?.setAttribute('data-auto-calc', 'true');
+    updatePurchaseModalContext();
+  });
+
+  purchaseTotalCostInput?.addEventListener('input', () => {
+    purchaseTotalCostInput.setAttribute('data-auto-calc', 'false');
+  });
+
+  // Submit do Formulário de Compra
+  document.getElementById('formPurchase')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const ingId = document.getElementById('purchaseIngredientId').value;
+    const qty = parseFloat(document.getElementById('purchaseQuantity').value);
+    const newPrice = parseFloat(document.getElementById('purchasePackagePrice').value);
+    const totalCost = parseFloat(document.getElementById('purchaseTotalCost').value);
+    const date = document.getElementById('purchaseDate').value;
+    const supplier = document.getElementById('purchaseSupplier').value.trim();
+    const paymentMethod = document.getElementById('purchasePaymentMethod').value;
+    const invoiceNumber = document.getElementById('purchaseInvoice').value.trim();
+    const notes = document.getElementById('purchaseNotes').value.trim();
+
+    if (!ingId) {
+      alert('Por favor, selecione o insumo comprado.');
+      return;
+    }
+    if (isNaN(qty) || qty <= 0) {
+      alert('Por favor, informe uma quantidade válida maior que zero.');
+      return;
+    }
+    if (isNaN(newPrice) || newPrice <= 0) {
+      alert('Por favor, informe um preço de embalagem válido.');
+      return;
+    }
+
+    const ing = window.db.getIngredients().find(i => i.id === ingId);
+    if (!ing) return;
+
+    // Registra compra e atualiza estoque + preço do insumo
+    const finalTotal = !isNaN(totalCost) && totalCost > 0 ? totalCost : (qty / (parseFloat(ing.packageQty) || 1)) * newPrice;
+    const result = window.db.addPurchase({
+      ingredientId: ing.id,
+      ingredientName: ing.name,
+      category: ing.category,
+      quantity: qty,
+      quantityAdded: qty,
+      unit: ing.packageUnit,
+      packagePrice: newPrice,
+      totalCost: Math.round(finalTotal * 100) / 100,
+      date: date || new Date().toISOString().split('T')[0],
+      supplier: supplier || ing.supplier || '',
+      paymentMethod: paymentMethod || 'Dinheiro/Pix',
+      invoiceNumber: invoiceNumber,
+      notes: notes
+    });
+
+    // Identifica receitas impactadas para mensagem rica
+    const recipes = window.db.getRecipes();
+    const impactedRecipes = recipes.filter(r => (r.items || []).some(item => item.ingredientId === ing.id));
+
+    closeModal('modalPurchase');
+
+    // Recalcula e atualiza tudo no sistema
+    renderPurchasesView();
+    renderDashboard();
+    renderRecipes();
+    renderProductsGrid();
+    initPricingCalculator();
+    renderCategoriesTable();
+    renderAllIngredientsTable();
+
+    const recCountMsg = impactedRecipes.length > 0 
+      ? ` e custos recalculados em ${impactedRecipes.length} ficha(s) técnica(s)!` 
+      : '!';
+
+    showToast(`✅ Compra registrada! Estoque de "${ing.name}" atualizado para ${result.ingredient ? result.ingredient.currentStock : (ing.currentStock + qty)} ${ing.packageUnit}${recCountMsg}`);
+  });
+
+  // Exporta helpers para acesso global
+  window.openNewPurchaseModal = openNewPurchaseModal;
+  window.openCriticalStockModal = openCriticalStockModal;
 
 
   // =========================================================================

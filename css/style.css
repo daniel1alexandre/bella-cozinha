@@ -1869,4 +1869,195 @@ textarea.form-control:focus {
   margin-top: 3px;
 }
 
+/* ====================================================================
+   ESTOQUE CRÍTICO INTERATIVO & MODAL DE ITENS EM ALERTA
+   ==================================================================== */
+.stat-card-clickable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast) !important;
+}
+
+.stat-card-clickable:hover {
+  transform: translateY(-4px) scale(1.015);
+  border-color: rgba(224, 93, 56, 0.6) !important;
+  box-shadow: 0 10px 28px rgba(224, 93, 56, 0.28) !important;
+}
+
+.stat-card-clickable:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.stat-card-hint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-gold);
+  background: rgba(245, 158, 11, 0.12);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  transition: all var(--transition-fast);
+}
+
+.stat-card-clickable:hover .stat-card-hint-badge {
+  background: var(--accent-gold);
+  color: #000;
+  border-color: var(--accent-gold);
+}
+
+.critical-summary-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.critical-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.critical-summary-label {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.critical-summary-val {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.critical-progress-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.critical-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.critical-progress-danger {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.critical-progress-warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.badge-stock-zero {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-stock-low {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ====================================================================
+   MÓDULO DE COMPRAS (PURCHASES)
+   ==================================================================== */
+.purchases-impact-box {
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12), rgba(245, 158, 11, 0.08));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 12px 0 16px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.purchases-impact-box .impact-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--accent-indigo);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.purchases-live-calc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+
+.live-calc-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.live-calc-item span:first-child {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.live-calc-item strong {
+  font-size: 0.95rem;
+  color: #fff;
+  font-weight: 600;
+}
+
+.badge-recipes-impacted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(99, 102, 241, 0.14);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+
 
